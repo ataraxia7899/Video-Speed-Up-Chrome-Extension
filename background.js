@@ -1,6 +1,6 @@
 (() => {
 	const BackgroundController = {
-		DEBUG: true,
+		DEBUG: false, // 디버깅 모드 비활성화
 		injectionTracker: new Map(),
 	};
 

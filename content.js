@@ -1,7 +1,7 @@
 (function () {
 	// 단일 상태 관리 객체
 	const state = {
-		DEBUG: true,
+		DEBUG: false, // 디버깅 모드 비활성화
 		initialized: false,
 		initializationInProgress: false,
 		initPromise: null,
@@ -19,15 +19,19 @@
 		initializedVideos: new Set(), // WeakSet을 Set으로 변경
 		pageInitialized: false, // 페이지 초기화 상태 추적
 		currentUrl: window.location.href, // 현재 URL 저장
+		lastEventTime: 0,
+		throttleDelay: 100,  // 쓰로틀링 딜레이 (ms)
 	};
 
 	// 핵심 유틸리티 함수
 	const utils = {
+		/*
 		log(...args) {
-			if (state.DEBUG)
+			if (state.DEBUG && console && console.log) {
 				console.log('[Content]', new Date().toISOString(), ...args);
+			}
 		},
-
+		*/
 		isValidSpeed(speed) {
 			const parsed = parseFloat(speed);
 			return !isNaN(parsed) && parsed >= 0.1 && parsed <= 16;
@@ -476,7 +480,9 @@
 
 	// URL 변경 감지 함수 수정
 	function handleUrlChange(newUrl) {
-		if (state.currentUrl === newUrl) return;
+		const now = Date.now();
+		if (state.currentUrl === newUrl || now - state.lastEventTime < state.throttleDelay) return;
+		state.lastEventTime = now;
 
 		try {
 			if (!chrome?.runtime?.id) {
@@ -502,26 +508,40 @@
 				}
 			}, 500);
 		} catch (error) {
-			utils.log('Error in URL change handler:', error);
+			console.error('Error in URL change handler:', error);
 			resetState();
 		}
 	}
 
 	// 상태 초기화 함수 수정
 	function resetState() {
-		state.initialized = false;
-		state.initializationInProgress = false;
-		state.retryCount = 0;
-		state.pageInitialized = false;
-		state.currentSpeed = 1.0;
-		state.initializedVideos = new Set();
+		try {
+			// 기본 상태로 초기화
+			state.initialized = false;
+			state.initializationInProgress = false;
+			state.retryCount = 0;
+			state.pageInitialized = false;
+			state.currentSpeed = 1.0;
 
-		// 모든 비디오의 user-modified-speed 속성 제거
-		document.querySelectorAll('video').forEach((video) => {
-			video.removeAttribute('user-modified-speed');
-		});
+			// Set 객체 재생성
+			state.initializedVideos = new Set();
 
-		cleanupResources();
+			// 모든 비디오의 user-modified-speed 속성 제거
+			const videos = document.querySelectorAll('video');
+			videos.forEach((video) => {
+				try {
+					video.removeAttribute('user-modified-speed');
+				} catch (error) {
+					utils.log('Error removing attribute from video:', error);
+				}
+			});
+
+			// 리소스 정리
+			cleanupResources();
+			utils.log('State reset completed');
+		} catch (error) {
+			utils.log('Error in resetState:', error);
+		}
 	}
 
 	// setupEventListeners 함수 수정
@@ -530,16 +550,14 @@
 
 		try {
 			// URL 변경 감지
-			const urlObserver = new MutationObserver(() => {
-				try {
+			const urlObserver = new MutationObserver(
+				debounce(() => {
 					const currentUrl = window.location.href;
 					if (state.currentUrl !== currentUrl) {
 						handleUrlChange(currentUrl);
 					}
-				} catch (error) {
-					utils.log('Error in URL observer:', error);
-				}
-			});
+				}, 250)
+			);
 
 			urlObserver.observe(document.body, {
 				subtree: true,
@@ -575,7 +593,7 @@
 
 			state.eventListenersInitialized = true;
 		} catch (error) {
-			utils.log('Error in setupEventListeners:', error);
+			console.error('Error in setupEventListeners:', error);
 		}
 	}
 
@@ -770,6 +788,27 @@
 			utils.log('Extension context check failed:', error);
 			return false;
 		}
+	}
+
+	// 디바운스 함수 추가
+	function debounce(func, delay) {
+		let timeoutId;
+		return function (...args) {
+			clearTimeout(timeoutId);
+			timeoutId = setTimeout(() => func.apply(this, args), delay);
+		};
+	}
+
+	// 쓰로틀 함수 추가
+	function throttle(func, limit) {
+		let inThrottle;
+		return function (...args) {
+			if (!inThrottle) {
+				func.apply(this, args);
+				inThrottle = true;
+				setTimeout(() => inThrottle = false, limit);
+			}
+		};
 	}
 
 	// 실행

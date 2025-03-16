@@ -1,10 +1,13 @@
 {
 	"manifest_version": 3,
 	"name": "Video Speed Controller",
-	"version": "1.0.1",
-	"description": "Control video playback speed with shortcuts and site-specific settings",
-	"permissions": ["storage", "activeTab", "scripting", "commands"],
-	"host_permissions": ["<all_urls>"],
+	"version": "0.0.0.1",
+	"description": "비디오 재생 속도를 쉽게 제어할 수 있는 확장 프로그램입니다. 사이트별 자동 설정과 단축키를 지원합니다.",
+	"author": {
+		"email": "your-email@example.com"
+	},
+	"permissions": ["storage", "activeTab", "scripting"],
+	"host_permissions": ["*://*/*"],
 	"action": {
 		"default_popup": "popup.html",
 		"default_icon": {
@@ -23,26 +26,25 @@
 			"matches": ["*://*/*"],
 			"js": ["content.js"],
 			"run_at": "document_start",
-			"world": "ISOLATED",
-			"all_frames": false
+			"world": "ISOLATED"
 		}
 	],
 	"background": {
 		"service_worker": "background.js",
 		"type": "module"
 	},
-	"web_accessible_resources": [
-		{
-			"resources": ["content.js"],
-			"matches": ["<all_urls>"]
-		}
-	],
 	"commands": {
 		"open-speed-popup": {
 			"suggested_key": {
 				"default": "Ctrl+Period"
 			},
-			"description": "Open speed control popup"
+			"description": "속도 조절 팝업 열기"
 		}
-	}
+	},
+	"web_accessible_resources": [
+		{
+			"resources": ["content.js"],
+			"matches": ["*://*/*"]
+		}
+	]
 }
