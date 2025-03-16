@@ -473,44 +473,45 @@
 	function handleUrlChange(newUrl) {
 		// 쓰로틀링 및 중복 체크
 		const now = Date.now();
-		if (
-			state.currentUrl === newUrl ||
-			now - state.lastEventTime < state.throttleDelay
-		) {
+		if (state.currentUrl === newUrl || now - state.lastEventTime < state.throttleDelay) {
 			return;
 		}
 		state.lastEventTime = now;
 
-		try {
-			// 초기화 진행 중이면 무시
-			if (state.initializationInProgress) {
-				return;
-			}
-
-			state.currentUrl = newUrl;
-			state.pageInitialized = false;
-			state.initializedVideos = new Set();
-
-			// 초기화 재시도 횟수 리셋
-			state.retryCount = 0;
-
-			// 지연된 재초기화
-			const reinitialize = async () => {
-				try {
-					await initialize();
-				} catch (error) {
-					console.error('Reinitialization error:', error);
-					if (state.retryCount < state.MAX_RETRIES) {
-						setTimeout(reinitialize, state.RETRY_DELAY);
-					}
+		const reinitialize = async (attempt = 0) => {
+			try {
+				// 컨텍스트 확인
+				if (!checkExtensionContext()) {
+					throw new Error('Extension context invalidated');
 				}
-			};
 
-			setTimeout(reinitialize, 500);
-		} catch (error) {
-			console.error('Error in URL change handler:', error);
+				state.currentUrl = newUrl;
+				state.pageInitialized = false;
+				state.initializedVideos = new Set();
+				state.retryCount = 0;
+
+				await initialize();
+				return true;
+			} catch (error) {
+				console.error(`Reinitialization attempt ${attempt + 1} failed:`, error);
+				
+				if (attempt < state.MAX_RETRIES && 
+					error.message.includes('Extension context invalidated')) {
+					// 재시도 간격을 점진적으로 증가
+					const delay = state.RETRY_DELAY * Math.pow(2, attempt);
+					await new Promise(resolve => setTimeout(resolve, delay));
+					return reinitialize(attempt + 1);
+				}
+				
+				throw error;
+			}
+		};
+
+		// 재초기화 시도
+		reinitialize().catch(error => {
+			console.error('Final reinitialization error:', error);
 			resetState();
-		}
+		});
 	}
 
 	// 상태 초기화 함수 수정
@@ -544,50 +545,58 @@
 		}
 	}
 
-	// setupEventListeners 함수 수정
+	// setupEventListeners 함수 개선
 	function setupEventListeners() {
 		if (state.eventListenersInitialized) return;
 
 		try {
-			// URL 변경 감지
-			const urlObserver = new MutationObserver(
-				debounce(() => {
-					const currentUrl = window.location.href;
-					if (state.currentUrl !== currentUrl) {
-						handleUrlChange(currentUrl);
-					}
-				}, 250)
-			);
+			// URL 변경 감지 - history API 변경 감지 추가
+			const handleUrlChangeDebounced = debounce((newUrl) => {
+				if (state.currentUrl !== newUrl) {
+					handleUrlChange(newUrl);
+				}
+			}, 250);
+
+			// History API 이벤트 리스너
+			window.addEventListener('popstate', () => {
+				handleUrlChangeDebounced(window.location.href);
+			});
+
+			// URL 변경 감지를 위한 MutationObserver
+			const urlObserver = new MutationObserver(() => {
+				handleUrlChangeDebounced(window.location.href);
+			});
 
 			urlObserver.observe(document.body, {
 				subtree: true,
-				childList: true,
+				childList: true
 			});
 
-			state.cleanup.add(() => urlObserver.disconnect());
+			state.cleanup.add(() => {
+				urlObserver.disconnect();
+				window.removeEventListener('popstate', handleUrlChangeDebounced);
+			});
 
 			// Chrome 이벤트 리스너
 			if (checkExtensionContext()) {
-				const errorHandler = () => {
+				const handleRuntimeError = () => {
 					if (chrome.runtime.lastError) {
-						utils.log('Runtime error detected, reinitializing...');
 						state.initialized = false;
 						state.retryCount = 0;
-						initialize();
+						initialize().catch(console.error);
 					}
 					return true;
 				};
 
-				chrome.runtime.onMessage.addListener(errorHandler);
+				chrome.runtime.onMessage.addListener(handleRuntimeError);
 				chrome.storage.onChanged.addListener((changes, namespace) => {
 					if (namespace === 'sync' && changes.siteSettings) {
-						utils.log('Site settings changed, updating...');
 						requestAnimationFrame(() => checkAndSetAutoSpeed());
 					}
 				});
 
 				state.cleanup.add(() => {
-					chrome.runtime.onMessage.removeListener(errorHandler);
+					chrome.runtime.onMessage.removeListener(handleRuntimeError);
 				});
 			}
 
@@ -742,13 +751,36 @@
 		state.currentSpeed = speed;
 	}
 
-	// 컨텍스트 유효성 검사 함수 수정
+	// 컨텍스트 유효성 검사 함수 강화
 	function checkExtensionContext() {
 		try {
-			// chrome.runtime.id가 존재하면 확장 프로그램이 활성 상태
-			return Boolean(chrome?.runtime?.id);
+			// chrome 객체 존재 여부 확인
+			if (typeof chrome === 'undefined') {
+				return false;
+			}
+
+			// runtime 객체 존재 여부 확인
+			if (!chrome.runtime) {
+				return false;
+			}
+
+			// extension ID 확인
+			if (!chrome.runtime.id) {
+				return false;
+			}
+
+			// 런타임 상태 테스트
+			return new Promise((resolve) => {
+				try {
+					chrome.runtime.sendMessage({ action: 'ping' }, response => {
+						const validContext = !chrome.runtime.lastError && response?.success;
+						resolve(validContext);
+					});
+				} catch (error) {
+					resolve(false);
+				}
+			});
 		} catch (error) {
-			utils.log('Extension context check failed:', error);
 			return false;
 		}
 	}
