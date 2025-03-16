@@ -326,10 +326,10 @@ h4 {
 }
 
 .site-item {
+	cursor: default;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	margin: 8px 0;
 	padding: 12px 16px;
 	background: var(--site-item-bg);
 	border-radius: 12px;
@@ -535,4 +535,73 @@ h4 {
 	border-radius: 10px;
 	margin: 10px 0;
 	font-size: 0.9rem;
+}
+
+/* 토글 스위치 스타일 */
+.toggle-switch {
+	position: relative;
+	display: inline-block;
+	width: 40px;
+	height: 20px;
+	margin-right: 10px;
+}
+
+.toggle-input {
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+
+.toggle-label {
+	position: absolute;
+	cursor: pointer;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: #ccc;
+	transition: 0.4s;
+	border-radius: 20px;
+}
+
+.toggle-label:before {
+	position: absolute;
+	content: '';
+	height: 16px;
+	width: 16px;
+	left: 2px;
+	bottom: 2px;
+	background-color: white;
+	transition: 0.4s;
+	border-radius: 50%;
+}
+
+.toggle-input:checked + .toggle-label {
+	background-color: var(--primary-color);
+}
+
+.toggle-input:checked + .toggle-label:before {
+	transform: translateX(20px);
+}
+
+.site-info {
+	display: flex;
+	align-items: center;
+	flex: 1;
+}
+
+@keyframes toggleAnimation {
+	0% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.1);
+	}
+	100% {
+		transform: scale(1);
+	}
+}
+
+.toggling {
+	animation: toggleAnimation 0.3s ease;
 }

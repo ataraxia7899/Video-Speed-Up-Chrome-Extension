@@ -358,61 +358,78 @@ function initializeButtons() {
 
 // 사이트별 설정 초기화
 function initializeSiteSettings() {
-	// 사이트 추가
 	const addSiteButton = document.getElementById('add-site');
-	if (addSiteButton) {
-		addSiteButton.addEventListener('click', () => {
-			const pattern = document.getElementById('site-url').value.trim();
-			const speed = parseFloat(document.getElementById('site-speed').value);
+	const siteList = document.getElementById('site-list');
 
-			if (!pattern) {
-				alert('URL 패턴을 입력해주세요.');
-				return;
-			}
+	if (!addSiteButton || !siteList) {
+		console.error('Required elements not found');
+		return;
+	}
 
-			if (!utils.isValidSpeed(speed)) {
-				alert('유효한 속도를 입력해주세요 (0.1 ~ 16).');
-				return;
-			}
+	// 사이트 추가 이벤트 리스너
+	addSiteButton.addEventListener('click', handleAddSite);
 
+	// 사이트 삭제 이벤트 리스너
+	siteList.addEventListener('click', handleSiteListClick);
+
+	// 초기 사이트 목록 로드
+	loadSiteList();
+}
+
+// 사이트 추가 핸들러 함수
+function handleAddSite() {
+	const pattern = document.getElementById('site-url')?.value.trim();
+	const speed = parseFloat(document.getElementById('site-speed')?.value);
+
+	if (!pattern) {
+		alert(chrome.i18n.getMessage('urlRequired') || 'URL 패턴을 입력해주세요.');
+		return;
+	}
+
+	if (!utils.isValidSpeed(speed)) {
+		alert(
+			chrome.i18n.getMessage('invalidSpeed') ||
+				'유효한 속도를 입력해주세요 (0.1 ~ 16).'
+		);
+		return;
+	}
+
+	chrome.storage.sync.get(['siteSettings'], (result) => {
+		const siteSettings = result.siteSettings || {};
+		siteSettings[pattern] = {
+			speed: speed,
+			enabled: true,
+		};
+
+		chrome.storage.sync.set({ siteSettings }, () => {
+			loadSiteList();
+			document.getElementById('site-url').value = '';
+			document.getElementById('site-speed').value = '1.0';
+		});
+	});
+}
+
+// 사이트 목록 클릭 이벤트 핸들러
+function handleSiteListClick(e) {
+	const target = e.target;
+
+	if (target.classList.contains('delete-site')) {
+		const pattern = target.dataset.pattern;
+		const siteItem = target.closest('.site-item');
+
+		if (!pattern || !siteItem) return;
+
+		siteItem.classList.remove('adding');
+		siteItem.classList.add('removing');
+
+		setTimeout(() => {
 			chrome.storage.sync.get(['siteSettings'], (result) => {
 				const siteSettings = result.siteSettings || {};
-				siteSettings[pattern] = speed;
-				chrome.storage.sync.set({ siteSettings }, () => {
-					loadSiteList();
-					document.getElementById('site-url').value = '';
-					document.getElementById('site-speed').value = '1.0';
-				});
+				delete siteSettings[pattern];
+				chrome.storage.sync.set({ siteSettings }, loadSiteList);
 			});
-		});
+		}, 300);
 	}
-
-	// 사이트 삭제
-	const siteList = document.getElementById('site-list');
-	if (siteList) {
-		siteList.addEventListener('click', (e) => {
-			if (e.target.classList.contains('delete-site')) {
-				const pattern = e.target.dataset.pattern;
-				const siteItem = e.target.closest('.site-item');
-
-				// 삭제 애니메이션 적용
-				siteItem.classList.remove('adding');
-				siteItem.classList.add('removing');
-
-				// 애니메이션 완료 후 실제 삭제
-				setTimeout(() => {
-					chrome.storage.sync.get(['siteSettings'], (result) => {
-						const siteSettings = result.siteSettings || {};
-						delete siteSettings[pattern];
-						chrome.storage.sync.set({ siteSettings }, loadSiteList);
-					});
-				}, 300);
-			}
-		});
-	}
-
-	// 사이트 목록 로드
-	loadSiteList();
 }
 
 // 사이트 목록 로드
@@ -424,24 +441,45 @@ function loadSiteList() {
 		siteList.innerHTML = '';
 
 		if (result.siteSettings && Object.keys(result.siteSettings).length > 0) {
-			Object.entries(result.siteSettings).forEach(([pattern, speed], index) => {
-				const div = document.createElement('div');
-				div.className = 'site-item adding';
-				div.innerHTML = `
-                    <span>${pattern} (${speed}x)</span>
-                    <button class="delete-site" data-pattern="${pattern}">${chrome.i18n.getMessage(
-					'delete'
-				)}</button>
-                `;
-				siteList.appendChild(div);
+			Object.entries(result.siteSettings).forEach(
+				([pattern, setting], index) => {
+					const speed = typeof setting === 'object' ? setting.speed : setting;
+					const isEnabled =
+						typeof setting === 'object' ? setting.enabled : true;
 
-				// 순차적으로 애니메이션 적용
-				setTimeout(() => {
-					div.style.animationDelay = `${index * 0.05}s`;
-				}, 0);
-			});
+					const div = document.createElement('div');
+					div.className = 'site-item adding';
+					div.dataset.pattern = pattern; // 패턴 데이터 속성 추가
+					div.innerHTML = `
+                    <div class="site-info">
+                        <label class="toggle-switch">
+                            <input type="checkbox" class="toggle-input" id="toggle-${index}" ${
+						isEnabled ? 'checked' : ''
+					}>
+                            <span class="toggle-label"></span>
+                        </label>
+                        <span class="site-pattern">${pattern} (${speed}x)</span>
+                    </div>
+                    <button class="delete-site" data-pattern="${pattern}">${chrome.i18n.getMessage(
+						'delete'
+					)}</button>
+                `;
+
+					siteList.appendChild(div);
+
+					// 토글 이벤트 리스너
+					const toggleInput = div.querySelector(`#toggle-${index}`);
+					toggleInput.addEventListener('change', (e) => {
+						const isChecked = e.target.checked;
+						updateSiteSettings(pattern, speed, isChecked);
+					});
+
+					setTimeout(() => {
+						div.style.animationDelay = `${index * 0.05}s`;
+					}, 0);
+				}
+			);
 		} else {
-			// 저장된 사이트가 없는 경우 메시지 표시
 			const emptyMessage = document.createElement('div');
 			emptyMessage.className = 'empty-message';
 			emptyMessage.textContent = chrome.i18n.getMessage('noSites');
@@ -450,6 +488,30 @@ function loadSiteList() {
 			emptyMessage.style.padding = '10px';
 			siteList.appendChild(emptyMessage);
 		}
+	});
+}
+
+function updateSiteSettings(pattern, speed, enabled) {
+	chrome.storage.sync.get(['siteSettings'], (result) => {
+		const siteSettings = result.siteSettings || {};
+		siteSettings[pattern] = {
+			speed: speed,
+			enabled: enabled,
+		};
+
+		chrome.storage.sync.set({ siteSettings }, () => {
+			// 토글 레이블 찾기 개선
+			const siteItem = document.querySelector(
+				`.site-item[data-pattern="${pattern}"]`
+			);
+			if (siteItem) {
+				const toggleLabel = siteItem.querySelector('.toggle-label');
+				if (toggleLabel) {
+					toggleLabel.classList.add('toggling');
+					setTimeout(() => toggleLabel.classList.remove('toggling'), 300);
+				}
+			}
+		});
 	});
 }
 
@@ -583,3 +645,13 @@ function localizeHtmlPage() {
 		if (message) element.setAttribute('aria-label', message);
 	});
 }
+
+// DOM이 로드된 후 초기화 실행
+document.addEventListener('DOMContentLoaded', async () => {
+	try {
+		await initializeApp();
+		initializeSiteSettings();
+	} catch (error) {
+		console.error('Initialization error:', error);
+	}
+});
