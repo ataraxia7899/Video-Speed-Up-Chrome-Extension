@@ -263,78 +263,80 @@ function addAnimationEffects() {
 
 // 속도 입력 필드 초기화 - 성능 개선
 function initializeButtons() {
-    return new Promise((resolve) => {
-        const speedButtons = document.querySelectorAll('.speed-btn');
-        const speedInput = document.getElementById('speed-input');
-        let inputTimeout;
+	return new Promise((resolve) => {
+		const speedButtons = document.querySelectorAll('.speed-btn');
+		const speedInput = document.getElementById('speed-input');
+		let inputTimeout;
 
-        // 프리셋 버튼 이벤트 위임
-        document.addEventListener('click', (e) => {
-            const button = e.target.closest('.speed-btn');
-            if (!button) return;
+		// 프리셋 버튼 이벤트 위임
+		document.addEventListener('click', (e) => {
+			const button = e.target.closest('.speed-btn');
+			if (!button) return;
 
-            e.preventDefault();
-            e.stopPropagation();
-            const speedValue = button.dataset.speed;
-            handleSpeedButtonClick(speedValue);
-        });
+			e.preventDefault();
+			e.stopPropagation();
+			const speedValue = button.dataset.speed;
+			handleSpeedButtonClick(speedValue);
+		});
 
-        if (speedInput) {
-            // 입력값 변경 시 처리 - 디바운스 적용
-            speedInput.addEventListener('input', 
-                debounce((e) => {
-                    const speed = parseFloat(e.target.value);
-                    if (isValidSpeed(speed)) {
-                        setSpeed(speed);
-                    }
-                }, 300)
-            );
+		if (speedInput) {
+			// 입력값 변경 시 처리 - 디바운스 적용
+			speedInput.addEventListener(
+				'input',
+				debounce((e) => {
+					const speed = parseFloat(e.target.value);
+					if (isValidSpeed(speed)) {
+						setSpeed(speed);
+					}
+				}, 300)
+			);
 
-            // ...existing code...
-        }
-        resolve();
-    });
+			// ...existing code...
+		}
+		resolve();
+	});
 }
 
 // 사이트별 설정 초기화
 function initializeSiteSettings() {
-    const addSiteButton = document.getElementById('add-site');
-    const siteList = document.getElementById('site-list');
+	const addSiteButton = document.getElementById('add-site');
+	const siteList = document.getElementById('site-list');
 
-    if (addSiteButton) {
-        addSiteButton.addEventListener('click', 
-            debounce(() => {
-                handleAddSite();
-            }, 300)
-        );
-    }
+	if (addSiteButton) {
+		addSiteButton.addEventListener(
+			'click',
+			debounce(() => {
+				handleAddSite();
+			}, 300)
+		);
+	}
 
-    if (siteList) {
-        // 이벤트 위임으로 변경
-        siteList.addEventListener('click', (e) => {
-            const deleteButton = e.target.closest('.delete-site');
-            if (!deleteButton) return;
+	if (siteList) {
+		// 이벤트 위임으로 변경
+		siteList.addEventListener('click', (e) => {
+			const deleteButton = e.target.closest('.delete-site');
+			if (!deleteButton) return;
 
-            const pattern = deleteButton.dataset.pattern;
-            const siteItem = deleteButton.closest('.site-item');
-            handleDeleteSite(pattern, siteItem);
-        });
-    }
+			const pattern = deleteButton.dataset.pattern;
+			const siteItem = deleteButton.closest('.site-item');
+			handleDeleteSite(pattern, siteItem);
+		});
+	}
 
-    loadSiteList();
+	loadSiteList();
 }
 
 // 디바운스 함수 추가
 function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
+	let timeout;
+	return function executedFunction(...args) {
+		const later = () => {
+			clearTimeout(timeout);
+			func(...args);
+		};
+		clearTimeout(timeout);
+		timeout = setTimeout(later, wait);
+	};
 }
 
 function initializeButtons() {

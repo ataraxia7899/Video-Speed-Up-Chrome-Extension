@@ -20,7 +20,7 @@
 		pageInitialized: false, // 페이지 초기화 상태 추적
 		currentUrl: window.location.href, // 현재 URL 저장
 		lastEventTime: 0,
-		throttleDelay: 100,  // 쓰로틀링 딜레이 (ms)
+		throttleDelay: 100, // 쓰로틀링 딜레이 (ms)
 	};
 
 	// 핵심 유틸리티 함수
@@ -481,7 +481,11 @@
 	// URL 변경 감지 함수 수정
 	function handleUrlChange(newUrl) {
 		const now = Date.now();
-		if (state.currentUrl === newUrl || now - state.lastEventTime < state.throttleDelay) return;
+		if (
+			state.currentUrl === newUrl ||
+			now - state.lastEventTime < state.throttleDelay
+		)
+			return;
 		state.lastEventTime = now;
 
 		try {
@@ -806,7 +810,7 @@
 			if (!inThrottle) {
 				func.apply(this, args);
 				inThrottle = true;
-				setTimeout(() => inThrottle = false, limit);
+				setTimeout(() => (inThrottle = false), limit);
 			}
 		};
 	}
