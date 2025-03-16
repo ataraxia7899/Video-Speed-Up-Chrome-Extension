@@ -16,6 +16,9 @@
 		cleanup: new Set(),
 		lastUrl: window.location.href,
 		videoObserver: null,
+		initializedVideos: new Set(), // WeakSet을 Set으로 변경
+		pageInitialized: false, // 페이지 초기화 상태 추적
+		currentUrl: window.location.href, // 현재 URL 저장
 	};
 
 	// 핵심 유틸리티 함수
@@ -156,7 +159,10 @@
 
 		try {
 			const validSpeed = Math.min(Math.max(parseFloat(speed), 0.1), 16);
-			videos.forEach((video) => (video.playbackRate = validSpeed));
+			videos.forEach((video) => {
+				video.setAttribute('user-modified-speed', validSpeed.toString());
+				video.playbackRate = validSpeed;
+			});
 			state.currentSpeed = validSpeed;
 
 			utils.log('Speed set successfully:', validSpeed);
@@ -468,69 +474,148 @@
 		});
 	}
 
-	// 이벤트 리스너 설정 수정
+	// URL 변경 감지 함수 수정
+	function handleUrlChange(newUrl) {
+		if (state.currentUrl === newUrl) return;
+
+		try {
+			if (!chrome?.runtime?.id) {
+				throw new Error('Extension context invalidated');
+			}
+
+			state.currentUrl = newUrl;
+			state.pageInitialized = false;
+			state.initializedVideos = new Set();
+			state.currentSpeed = 1.0; // 속도 초기화
+
+			// 기존 비디오의 user-modified-speed 속성 제거
+			document.querySelectorAll('video').forEach((video) => {
+				video.removeAttribute('user-modified-speed');
+			});
+
+			utils.log('URL changed, reinitializing...', newUrl);
+
+			// 지연된 초기화
+			setTimeout(() => {
+				if (chrome?.runtime?.id) {
+					initialize();
+				}
+			}, 500);
+		} catch (error) {
+			utils.log('Error in URL change handler:', error);
+			resetState();
+		}
+	}
+
+	// 상태 초기화 함수 수정
+	function resetState() {
+		state.initialized = false;
+		state.initializationInProgress = false;
+		state.retryCount = 0;
+		state.pageInitialized = false;
+		state.currentSpeed = 1.0;
+		state.initializedVideos = new Set();
+
+		// 모든 비디오의 user-modified-speed 속성 제거
+		document.querySelectorAll('video').forEach((video) => {
+			video.removeAttribute('user-modified-speed');
+		});
+
+		cleanupResources();
+	}
+
+	// setupEventListeners 함수 수정
 	function setupEventListeners() {
 		if (state.eventListenersInitialized) return;
 
-		if (chrome?.runtime?.onMessage) {
-			const errorHandler = () => {
-				if (chrome.runtime.lastError) {
-					utils.log('Runtime error detected, reinitializing...');
-					state.initialized = false;
-					state.retryCount = 0;
-					initialize();
-				}
-				return true;
-			};
-
-			chrome.runtime.onMessage.addListener(errorHandler);
-			chrome.storage.onChanged.addListener((changes, namespace) => {
-				if (namespace === 'sync' && changes.siteSettings) {
-					utils.log('Site settings changed, updating...');
-					requestAnimationFrame(() => checkAndSetAutoSpeed());
+		try {
+			// URL 변경 감지
+			const urlObserver = new MutationObserver(() => {
+				try {
+					const currentUrl = window.location.href;
+					if (state.currentUrl !== currentUrl) {
+						handleUrlChange(currentUrl);
+					}
+				} catch (error) {
+					utils.log('Error in URL observer:', error);
 				}
 			});
 
-			state.cleanup.add(() => {
-				chrome.runtime.onMessage.removeListener(errorHandler);
+			urlObserver.observe(document.body, {
+				subtree: true,
+				childList: true,
 			});
-		}
 
-		// URL 변경 감지 개선
-		let lastUrl = window.location.href;
-		const urlChecker = setInterval(() => {
-			const currentUrl = window.location.href;
-			if (lastUrl !== currentUrl) {
-				lastUrl = currentUrl;
-				utils.log('URL changed to:', currentUrl);
-				requestAnimationFrame(() => checkAndSetAutoSpeed());
+			state.cleanup.add(() => urlObserver.disconnect());
+
+			// Chrome 이벤트 리스너
+			if (checkExtensionContext()) {
+				const errorHandler = () => {
+					if (chrome.runtime.lastError) {
+						utils.log('Runtime error detected, reinitializing...');
+						state.initialized = false;
+						state.retryCount = 0;
+						initialize();
+					}
+					return true;
+				};
+
+				chrome.runtime.onMessage.addListener(errorHandler);
+				chrome.storage.onChanged.addListener((changes, namespace) => {
+					if (namespace === 'sync' && changes.siteSettings) {
+						utils.log('Site settings changed, updating...');
+						requestAnimationFrame(() => checkAndSetAutoSpeed());
+					}
+				});
+
+				state.cleanup.add(() => {
+					chrome.runtime.onMessage.removeListener(errorHandler);
+				});
 			}
-		}, 1000);
 
-		state.cleanup.add(() => clearInterval(urlChecker));
-		state.eventListenersInitialized = true;
+			state.eventListenersInitialized = true;
+		} catch (error) {
+			utils.log('Error in setupEventListeners:', error);
+		}
 	}
 
-	// DOM 변경 감지 초기화
+	// DOM 변경 감지 초기화 함수 수정
 	function initializeObserver() {
 		if (state.autoSpeedObserver) {
 			return;
 		}
 
 		try {
+			let observerTimeout = null;
 			state.autoSpeedObserver = new MutationObserver((mutations) => {
-				if (!checkExtensionContext()) return;
-
-				const videoAdded = mutations.some((mutation) =>
-					Array.from(mutation.addedNodes).some(
-						(node) => node.nodeName === 'VIDEO'
-					)
-				);
-
-				if (videoAdded) {
-					// 비디오 요소가 추가될 때 자동 속도 설정 적용
-					checkAndSetAutoSpeed();
+				if (observerTimeout) {
+					clearTimeout(observerTimeout);
 				}
+
+				observerTimeout = setTimeout(() => {
+					try {
+						if (!chrome?.runtime?.id) return;
+
+						const videoAdded = mutations.some((mutation) =>
+							Array.from(mutation.addedNodes).some(
+								(node) => node.nodeName === 'VIDEO'
+							)
+						);
+
+						if (videoAdded) {
+							if (!state.initializedVideos) {
+								state.initializedVideos = new Set();
+							}
+							checkAndSetAutoSpeed();
+						}
+					} catch (error) {
+						utils.log('Observer error:', error);
+						if (error.message.includes('Extension context invalidated')) {
+							resetState();
+							setTimeout(() => initialize(), 1000);
+						}
+					}
+				}, 100);
 			});
 
 			state.autoSpeedObserver.observe(document.body, {
@@ -539,6 +624,9 @@
 			});
 
 			state.cleanup.add(() => {
+				if (observerTimeout) {
+					clearTimeout(observerTimeout);
+				}
 				if (state.autoSpeedObserver) {
 					state.autoSpeedObserver.disconnect();
 					state.autoSpeedObserver = null;
@@ -553,101 +641,133 @@
 	function applySpeedToVideo(video, speed) {
 		if (!video || !utils.isValidSpeed(speed)) return;
 
-		// 이전 이벤트 리스너 제거
-		if (video._speedHandler) {
-			video.removeEventListener('ratechange', video._speedHandler);
+		try {
+			if (!state.initializedVideos) {
+				state.initializedVideos = new Set();
+			}
+
+			if (!state.initializedVideos.has(video)) {
+				// 초기 속도 설정
+				video.playbackRate = speed;
+				state.initializedVideos.add(video);
+				video.removeAttribute('user-modified-speed'); // 이전 수정 상태 제거
+
+				// play 이벤트에서 속도 재설정 (한 번만)
+				video.addEventListener(
+					'play',
+					() => {
+						if (!video.hasAttribute('user-modified-speed')) {
+							video.playbackRate = speed;
+						}
+					},
+					{ once: true }
+				);
+
+				utils.log(`Successfully initialized video with speed: ${speed}`);
+			}
+		} catch (error) {
+			utils.log('Error applying speed to video:', error);
 		}
-
-		// 새로운 속도 적용
-		video.playbackRate = speed;
-
-		// 새 이벤트 리스너 추가
-		video._speedHandler = () => {
-			if (video.playbackRate !== speed) {
-				utils.log('Force setting speed to:', speed);
-				video.playbackRate = speed;
-			}
-		};
-
-		video.addEventListener('ratechange', video._speedHandler);
-		video.addEventListener('play', () => {
-			if (video.playbackRate !== speed) {
-				video.playbackRate = speed;
-			}
-		});
 	}
 
 	// 페이지 로드 시 자동 속도 설정
 	function checkAndSetAutoSpeed() {
-		chrome.storage.sync.get(['siteSettings'], (result) => {
-			if (!result.siteSettings) {
-				utils.log('No site settings found');
-				return;
-			}
+		if (!checkExtensionContext()) {
+			utils.log('Extension context invalid, skipping auto speed setup');
+			return;
+		}
 
-			const currentUrl = window.location.href;
-			utils.log('Checking auto speed for URL:', currentUrl);
-
-			let matchedSpeed = null;
-			let matchedPattern = null;
-
-			// URL 패턴 확인 및 일치하는 속도 찾기
-			Object.entries(result.siteSettings).forEach(([pattern, speed]) => {
-				try {
-					const regexPattern = pattern.replace(/\*/g, '.*');
-					if (currentUrl.match(new RegExp(regexPattern))) {
-						matchedSpeed = parseFloat(speed);
-						matchedPattern = pattern;
-					}
-				} catch (error) {
-					utils.log('Error matching URL pattern:', error);
+		try {
+			chrome.storage.sync.get(['siteSettings'], (result) => {
+				if (!result.siteSettings) {
+					utils.log('No site settings found');
+					return;
 				}
-			});
 
-			// 일치하는 패턴이 없으면 종료
-			if (matchedSpeed === null) {
-				utils.log('No matching pattern found for current URL');
-				return;
-			}
+				const currentUrl = window.location.href;
+				utils.log('Checking auto speed for URL:', currentUrl);
 
-			utils.log(
-				`Found matching pattern: ${matchedPattern} with speed: ${matchedSpeed}x`
-			);
+				let matchedSpeed = null;
+				let matchedPattern = null;
 
-			utils.log(`Applying speed ${matchedSpeed}x to all videos`);
+				// URL 패턴 확인 및 일치하는 속도 찾기
+				Object.entries(result.siteSettings).forEach(([pattern, speed]) => {
+					try {
+						const regexPattern = pattern.replace(/\*/g, '.*');
+						if (currentUrl.match(new RegExp(regexPattern))) {
+							matchedSpeed = parseFloat(speed);
+							matchedPattern = pattern;
+						}
+					} catch (error) {
+						utils.log('Error matching URL pattern:', error);
+					}
+				});
 
-			// 현재 존재하는 비디오에 즉시 적용
-			document.querySelectorAll('video').forEach((video) => {
-				applySpeedToVideo(video, matchedSpeed);
-			});
+				// 일치하는 패턴이 없으면 종료
+				if (matchedSpeed === null) {
+					utils.log('No matching pattern found for current URL');
+					state.pageInitialized = true;
+					return;
+				}
 
-			// 새로운 비디오 요소 감지
-			if (!state.videoObserver) {
-				state.videoObserver = new MutationObserver((mutations) => {
-					mutations.forEach((mutation) => {
-						mutation.addedNodes.forEach((node) => {
-							if (node.nodeName === 'VIDEO') {
-								applySpeedToVideo(node, matchedSpeed);
-							}
+				utils.log(
+					`Found matching pattern: ${matchedPattern} with initial speed: ${matchedSpeed}x`
+				);
+
+				// 현재 존재하는 비디오 중 사용자가 수정하지 않은 비디오에만 적용
+				document.querySelectorAll('video').forEach((video) => {
+					if (
+						!state.initializedVideos.has(video) &&
+						!video.hasAttribute('user-modified-speed')
+					) {
+						applySpeedToVideo(video, matchedSpeed);
+					}
+				});
+
+				state.pageInitialized = true;
+
+				// 새로운 비디오 요소 감지
+				if (!state.videoObserver) {
+					state.videoObserver = new MutationObserver((mutations) => {
+						mutations.forEach((mutation) => {
+							mutation.addedNodes.forEach((node) => {
+								if (node.nodeName === 'VIDEO') {
+									// 약간의 지연을 주어 비디오 요소가 완전히 초기화되도록 함
+									setTimeout(() => {
+										applySpeedToVideo(node, matchedSpeed);
+									}, 100);
+								}
+							});
 						});
 					});
-				});
 
-				state.videoObserver.observe(document.body, {
-					childList: true,
-					subtree: true,
+					state.videoObserver.observe(document.body, {
+						childList: true,
+						subtree: true,
+					});
+				}
+
+				// 기존 비디오에도 적용
+				requestAnimationFrame(() => {
+					document.querySelectorAll('video').forEach((video) => {
+						if (!state.initializedVideos.has(video)) {
+							applySpeedToVideo(video, matchedSpeed);
+						}
+					});
 				});
-			}
-		});
+			});
+		} catch (error) {
+			utils.log('Error in checkAndSetAutoSpeed:', error);
+		}
 	}
 
-	// 컨텍스트 유효성 검사 함수
+	// 컨텍스트 유효성 검사 함수 수정
 	function checkExtensionContext() {
 		try {
-			// 컨텍스트가 유효한지 확인
-			chrome.runtime.getURL('');
-			return true;
+			// chrome.runtime.id가 존재하면 확장 프로그램이 활성 상태
+			return Boolean(chrome?.runtime?.id);
 		} catch (error) {
+			utils.log('Extension context check failed:', error);
 			return false;
 		}
 	}
