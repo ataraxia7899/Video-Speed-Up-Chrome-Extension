@@ -14,6 +14,8 @@
 		eventListenersInitialized: false,
 		keyHandlerInstalled: false,
 		cleanup: new Set(),
+		lastUrl: window.location.href,
+		videoObserver: null,
 	};
 
 	// 핵심 유틸리티 함수
@@ -466,13 +468,10 @@
 		});
 	}
 
-	// 이벤트 리스너 설정
+	// 이벤트 리스너 설정 수정
 	function setupEventListeners() {
-		if (state.eventListenersInitialized) {
-			return;
-		}
+		if (state.eventListenersInitialized) return;
 
-		// Chrome 런타임 오류 감지 및 처리
 		if (chrome?.runtime?.onMessage) {
 			const errorHandler = () => {
 				if (chrome.runtime.lastError) {
@@ -485,11 +484,30 @@
 			};
 
 			chrome.runtime.onMessage.addListener(errorHandler);
+			chrome.storage.onChanged.addListener((changes, namespace) => {
+				if (namespace === 'sync' && changes.siteSettings) {
+					utils.log('Site settings changed, updating...');
+					requestAnimationFrame(() => checkAndSetAutoSpeed());
+				}
+			});
+
 			state.cleanup.add(() => {
 				chrome.runtime.onMessage.removeListener(errorHandler);
 			});
 		}
 
+		// URL 변경 감지 개선
+		let lastUrl = window.location.href;
+		const urlChecker = setInterval(() => {
+			const currentUrl = window.location.href;
+			if (lastUrl !== currentUrl) {
+				lastUrl = currentUrl;
+				utils.log('URL changed to:', currentUrl);
+				requestAnimationFrame(() => checkAndSetAutoSpeed());
+			}
+		}, 1000);
+
+		state.cleanup.add(() => clearInterval(urlChecker));
 		state.eventListenersInitialized = true;
 	}
 
@@ -510,7 +528,8 @@
 				);
 
 				if (videoAdded) {
-					setVideoSpeed(state.currentSpeed);
+					// 비디오 요소가 추가될 때 자동 속도 설정 적용
+					checkAndSetAutoSpeed();
 				}
 			});
 
@@ -530,21 +549,55 @@
 		}
 	}
 
+	// 비디오 속도 설정 함수 수정
+	function applySpeedToVideo(video, speed) {
+		if (!video || !utils.isValidSpeed(speed)) return;
+
+		// 이전 이벤트 리스너 제거
+		if (video._speedHandler) {
+			video.removeEventListener('ratechange', video._speedHandler);
+		}
+
+		// 새로운 속도 적용
+		video.playbackRate = speed;
+
+		// 새 이벤트 리스너 추가
+		video._speedHandler = () => {
+			if (video.playbackRate !== speed) {
+				utils.log('Force setting speed to:', speed);
+				video.playbackRate = speed;
+			}
+		};
+
+		video.addEventListener('ratechange', video._speedHandler);
+		video.addEventListener('play', () => {
+			if (video.playbackRate !== speed) {
+				video.playbackRate = speed;
+			}
+		});
+	}
+
 	// 페이지 로드 시 자동 속도 설정
 	function checkAndSetAutoSpeed() {
 		chrome.storage.sync.get(['siteSettings'], (result) => {
-			if (!result.siteSettings) return;
+			if (!result.siteSettings) {
+				utils.log('No site settings found');
+				return;
+			}
 
 			const currentUrl = window.location.href;
+			utils.log('Checking auto speed for URL:', currentUrl);
+
 			let matchedSpeed = null;
+			let matchedPattern = null;
 
 			// URL 패턴 확인 및 일치하는 속도 찾기
 			Object.entries(result.siteSettings).forEach(([pattern, speed]) => {
 				try {
-					// *를 정규식으로 변환
 					const regexPattern = pattern.replace(/\*/g, '.*');
 					if (currentUrl.match(new RegExp(regexPattern))) {
-						matchedSpeed = speed;
+						matchedSpeed = parseFloat(speed);
+						matchedPattern = pattern;
 					}
 				} catch (error) {
 					utils.log('Error matching URL pattern:', error);
@@ -552,43 +605,39 @@
 			});
 
 			// 일치하는 패턴이 없으면 종료
-			if (matchedSpeed === null) return;
+			if (matchedSpeed === null) {
+				utils.log('No matching pattern found for current URL');
+				return;
+			}
 
-			// 비디오 요소에 속도 적용 함수
-			const applySpeedToVideos = () => {
-				const videos = document.querySelectorAll('video');
-				if (videos.length > 0) {
-					videos.forEach((video) => {
-						video.playbackRate = matchedSpeed;
+			utils.log(
+				`Found matching pattern: ${matchedPattern} with speed: ${matchedSpeed}x`
+			);
+
+			utils.log(`Applying speed ${matchedSpeed}x to all videos`);
+
+			// 현재 존재하는 비디오에 즉시 적용
+			document.querySelectorAll('video').forEach((video) => {
+				applySpeedToVideo(video, matchedSpeed);
+			});
+
+			// 새로운 비디오 요소 감지
+			if (!state.videoObserver) {
+				state.videoObserver = new MutationObserver((mutations) => {
+					mutations.forEach((mutation) => {
+						mutation.addedNodes.forEach((node) => {
+							if (node.nodeName === 'VIDEO') {
+								applySpeedToVideo(node, matchedSpeed);
+							}
+						});
 					});
-					utils.log(
-						`Applied auto speed ${matchedSpeed}x to ${videos.length} videos`
-					);
-					return true;
-				}
-				return false;
-			};
+				});
 
-			// 즉시 비디오 요소 찾기 시도
-			if (applySpeedToVideos()) return;
-
-			// 비디오 요소가 없으면 MutationObserver로 DOM 변화 감시
-			const observer = new MutationObserver((mutations) => {
-				if (applySpeedToVideos()) {
-					observer.disconnect();
-				}
-			});
-
-			// body 전체 변화 감시
-			observer.observe(document.body, {
-				childList: true,
-				subtree: true,
-			});
-
-			// 30초 후에도 비디오를 찾지 못하면 observer 중지
-			setTimeout(() => {
-				observer.disconnect();
-			}, 30000);
+				state.videoObserver.observe(document.body, {
+					childList: true,
+					subtree: true,
+				});
+			}
 		});
 	}
 
