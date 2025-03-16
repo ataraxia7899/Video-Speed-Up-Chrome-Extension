@@ -1,0 +1,48 @@
+{
+	"manifest_version": 3,
+	"name": "Video Speed Controller",
+	"version": "1.0.1",
+	"description": "Control video playback speed with shortcuts and site-specific settings",
+	"permissions": ["storage", "activeTab", "scripting", "commands"],
+	"host_permissions": ["<all_urls>"],
+	"action": {
+		"default_popup": "popup.html",
+		"default_icon": {
+			"16": "icons/icon16.png",
+			"48": "icons/icon48.png",
+			"128": "icons/icon128.png"
+		}
+	},
+	"icons": {
+		"16": "icons/icon16.png",
+		"48": "icons/icon48.png",
+		"128": "icons/icon128.png"
+	},
+	"content_scripts": [
+		{
+			"matches": ["*://*/*"],
+			"js": ["content.js"],
+			"run_at": "document_start",
+			"world": "ISOLATED",
+			"all_frames": false
+		}
+	],
+	"background": {
+		"service_worker": "background.js",
+		"type": "module"
+	},
+	"web_accessible_resources": [
+		{
+			"resources": ["content.js"],
+			"matches": ["<all_urls>"]
+		}
+	],
+	"commands": {
+		"open-speed-popup": {
+			"suggested_key": {
+				"default": "Ctrl+Period"
+			},
+			"description": "Open speed control popup"
+		}
+	}
+}
