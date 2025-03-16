@@ -554,11 +554,18 @@ function updateShortcutInputs(settings) {
 
 // HTML 요소에 i18n 메시지 적용하는 함수 추가
 function localizeHtmlPage() {
+	// 일반 텍스트 요소
 	const elements = document.querySelectorAll('[data-i18n]');
 	elements.forEach((element) => {
 		const key = element.getAttribute('data-i18n');
 		element.textContent = chrome.i18n.getMessage(key);
 	});
+
+	// speed-input 라벨 설정
+	const speedInput = document.querySelector('.speed-input');
+	if (speedInput) {
+		speedInput.dataset.label = chrome.i18n.getMessage('speedInput');
+	}
 
 	// placeholder 속성
 	document.querySelectorAll('[data-i18n-placeholder]').forEach((element) => {

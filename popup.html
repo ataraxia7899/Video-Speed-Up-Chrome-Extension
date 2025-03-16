@@ -104,7 +104,7 @@
 			}
 
 			.speed-input::before {
-				content: '속도 입력';
+				content: attr(data-label);
 				position: absolute;
 				top: -20px;
 				left: 50%;
@@ -550,7 +550,7 @@
 				<span id="current-speed">1.0</span>x
 			</div>
 			<div class="speed-controls">
-				<div class="speed-input">
+				<div class="speed-input" data-label="">
 					<input
 						type="number"
 						id="speed-input"
@@ -656,7 +656,7 @@
 				<li><strong>Ctrl + Shift + ↓</strong> - 속도 감소 (0.25x)</li> -->
 			</ul>
 			<div class="version-info">
-				<span>버전: 1.0.1</span>
+				<span>version: 1.0.1</span>
 			</div>
 		</div>
 
