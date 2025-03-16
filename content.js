@@ -25,13 +25,8 @@
 
 	// 핵심 유틸리티 함수
 	const utils = {
-		/*
-		log(...args) {
-			if (state.DEBUG && console && console.log) {
-				console.log('[Content]', new Date().toISOString(), ...args);
-			}
-		},
-		*/
+		// 무작동 로그 함수
+		log: () => {}, // noop 함수로 대체
 		isValidSpeed(speed) {
 			const parsed = parseFloat(speed);
 			return !isNaN(parsed) && parsed >= 0.1 && parsed <= 16;
@@ -54,15 +49,12 @@
 		}
 
 		if (state.retryCount >= state.MAX_RETRIES) {
-			utils.log('Max retry attempts reached');
 			return false;
 		}
 
 		state.initializationInProgress = true;
 
 		try {
-			utils.log('Starting initialization...');
-
 			// 컨텍스트 유효성 검사
 			if (!checkExtensionContext()) {
 				throw new Error('Extension context invalidated');
@@ -85,10 +77,9 @@
 
 			state.initialized = true;
 			state.initializationInProgress = false;
-			utils.log('Extension initialized successfully');
 			return true;
 		} catch (error) {
-			utils.log('Initialization error:', error);
+			console.error('Initialization error:', error); // utils.log 대신 console.error 사용
 			state.retryCount++;
 			state.initializationInProgress = false;
 
@@ -389,9 +380,9 @@
 		const popup = document.createElement('div');
 		popup.className = 'speed-popup';
 		popup.innerHTML = `
-            <span>재생 속도:</span>
+            <span>${chrome.i18n.getMessage('currentSpeed')}</span>
             <input type="number" step="0.1" min="0.1" max="16" value="1.0">
-            <button>적용</button>
+            <button>${chrome.i18n.getMessage('apply')}</button>
         `;
 
 		const input = popup.querySelector('input');

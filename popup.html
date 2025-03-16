@@ -542,11 +542,12 @@
 		</style>
 	</head>
 	<body>
-		<h3>Video Speed Controller</h3>
+		<h3 data-i18n="extName">Video Speed Controller</h3>
 
 		<div class="card">
 			<div class="current-speed">
-				현재 속도: <span id="current-speed">1.0</span>x
+				<span data-i18n="currentSpeed">현재 속도:</span>
+				<span id="current-speed">1.0</span>x
 			</div>
 			<div class="speed-controls">
 				<div class="speed-input">
@@ -558,11 +559,12 @@
 						max="16"
 						value="1.0"
 						aria-label="재생 속도 입력"
+						data-i18n-aria="inputSpeedAriaLabel"
 					/>
 				</div>
 
 				<div class="preset-section">
-					<h5>프리셋 속도</h5>
+					<h5 data-i18n="presetSpeed">프리셋 속도</h5>
 					<div class="preset-buttons">
 						<button class="speed-btn" data-speed="0.5">0.5x</button>
 						<button class="speed-btn" data-speed="1.0">1.0x</button>
@@ -572,7 +574,7 @@
 				</div>
 
 				<div class="speed-adjust-section">
-					<h5>속도 조절</h5>
+					<h5 data-i18n="speedAdjust">속도 조절</h5>
 					<div class="preset-buttons2">
 						<button class="speed-btn" data-speed="-1" aria-label="속도 1 감소">
 							<span
@@ -616,13 +618,14 @@
 		</div>
 
 		<div class="card shortcut-section">
-			<h4>사이트별 자동 설정</h4>
+			<h4 data-i18n="siteSettings">사이트별 자동 설정</h4>
 			<div class="site-row">
 				<input
 					type="text"
 					id="site-url"
 					placeholder="URL 패턴 (예: *.youtube.com)"
 					aria-label="URL 패턴 입력"
+					data-i18n-placeholder="urlPatternPlaceholder"
 				/>
 				<input
 					type="number"
@@ -633,8 +636,9 @@
 					value="1.0"
 					placeholder="재생 속도"
 					aria-label="사이트별 재생 속도 입력"
+					data-i18n-placeholder="speedPlaceholder"
 				/>
-				<button id="add-site">추가</button>
+				<button id="add-site" data-i18n="addButton">추가</button>
 			</div>
 			<div id="site-list">
 				<!-- 저장된 사이트 목록이 여기에 표시됩니다 -->
@@ -642,9 +646,12 @@
 		</div>
 
 		<div class="card info-section">
-			<h4>단축키 안내</h4>
+			<h4 data-i18n="shortcutGuide">단축키 안내</h4>
 			<ul class="shortcut-list">
-				<li><strong>Ctrl + .</strong> - 속도 조절 팝업 열기</li>
+				<li>
+					<strong>Ctrl + .</strong> -
+					<span data-i18n="openSpeedPopup">속도 조절 팝업 열기</span>
+				</li>
 				<!-- <li><strong>Ctrl + Shift + ↑</strong> - 속도 증가 (0.25x)</li>
 				<li><strong>Ctrl + Shift + ↓</strong> - 속도 감소 (0.25x)</li> -->
 			</ul>

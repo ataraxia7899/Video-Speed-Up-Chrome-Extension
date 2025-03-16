@@ -1,0 +1,58 @@
+{
+	"extName": {
+		"message": "Video Speed Controller",
+		"description": "Extension name"
+	},
+	"extDescription": {
+		"message": "Control video playback speed easily with shortcuts and site-specific settings",
+		"description": "Extension description"
+	},
+	"currentSpeed": {
+		"message": "Current Speed:",
+		"description": "Current speed label"
+	},
+	"presetSpeed": {
+		"message": "Preset Speed",
+		"description": "Preset speed section title"
+	},
+	"speedAdjust": {
+		"message": "Speed Adjustment",
+		"description": "Speed adjustment section title"
+	},
+	"siteSettings": {
+		"message": "Site-specific Settings",
+		"description": "Site settings section title"
+	},
+	"urlPatternPlaceholder": {
+		"message": "URL pattern (e.g., *.youtube.com)",
+		"description": "URL pattern input placeholder"
+	},
+	"speedPlaceholder": {
+		"message": "Playback speed",
+		"description": "Speed input placeholder"
+	},
+	"addButton": {
+		"message": "Add",
+		"description": "Add button text"
+	},
+	"shortcutGuide": {
+		"message": "Shortcut Guide",
+		"description": "Shortcut guide section title"
+	},
+	"openSpeedPopup": {
+		"message": "Open speed control popup",
+		"description": "Speed popup shortcut description"
+	},
+	"apply": {
+		"message": "Apply",
+		"description": "Apply button text"
+	},
+	"delete": {
+		"message": "Delete",
+		"description": "Delete button text"
+	},
+	"noSites": {
+		"message": "No saved sites",
+		"description": "Empty site list message"
+	}
+}

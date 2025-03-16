@@ -1,0 +1,58 @@
+{
+	"extName": {
+		"message": "비디오 속도 컨트롤러",
+		"description": "확장 프로그램 이름"
+	},
+	"extDescription": {
+		"message": "비디오 재생 속도를 쉽게 제어할 수 있는 확장 프로그램입니다.",
+		"description": "확장 프로그램 설명"
+	},
+	"currentSpeed": {
+		"message": "현재 속도:",
+		"description": "현재 속도 라벨"
+	},
+	"presetSpeed": {
+		"message": "프리셋 속도",
+		"description": "프리셋 속도 섹션 제목"
+	},
+	"speedAdjust": {
+		"message": "속도 조절",
+		"description": "속도 조절 섹션 제목"
+	},
+	"siteSettings": {
+		"message": "사이트별 자동 설정",
+		"description": "사이트 설정 섹션 제목"
+	},
+	"urlPatternPlaceholder": {
+		"message": "URL 패턴 (예: *.youtube.com)",
+		"description": "URL 패턴 입력 플레이스홀더"
+	},
+	"speedPlaceholder": {
+		"message": "재생 속도",
+		"description": "속도 입력 플레이스홀더"
+	},
+	"addButton": {
+		"message": "추가",
+		"description": "추가 버튼 텍스트"
+	},
+	"shortcutGuide": {
+		"message": "단축키 안내",
+		"description": "단축키 안내 섹션 제목"
+	},
+	"openSpeedPopup": {
+		"message": "속도 조절 팝업 열기",
+		"description": "속도 팝업 단축키 설명"
+	},
+	"apply": {
+		"message": "적용",
+		"description": "적용 버튼 텍스트"
+	},
+	"delete": {
+		"message": "삭제",
+		"description": "삭제 버튼 텍스트"
+	},
+	"noSites": {
+		"message": "저장된 사이트가 없습니다",
+		"description": "빈 사이트 목록 메시지"
+	}
+}

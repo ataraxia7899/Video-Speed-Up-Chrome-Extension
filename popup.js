@@ -1,26 +1,18 @@
 // 기본 상태 관리
 let currentVideoSpeed = 1.0;
 
-// 디버깅 기능 비활성화
-const DEBUG = false;
-
-// 로그 함수 비활성화
-/*
-function log(...args) {
-    if (DEBUG && console && console.log) {
-        console.log('[Popup]', new Date().toISOString(), ...args);
-    }
-}
-*/
+// utils 객체 정의
+const utils = {
+	// 무작동 로그 함수
+	log: () => {}, // noop 함수로 대체
+	isValidSpeed(speed) {
+		const parsed = parseFloat(speed);
+		return !isNaN(parsed) && parsed >= 0.1 && parsed <= 16;
+	},
+};
 
 // 핵심 유틸리티 함수들
-function isValidSpeed(speed) {
-	const parsed = parseFloat(speed);
-	return !isNaN(parsed) && parsed >= 0.1 && parsed <= 16;
-}
-
 function updateSpeedDisplays(speed) {
-	log('Updating speed displays:', speed);
 	try {
 		const speedValue = parseFloat(speed).toFixed(1);
 		const currentSpeedEl = document.getElementById('current-speed');
@@ -30,14 +22,11 @@ function updateSpeedDisplays(speed) {
 			currentSpeedEl.textContent = speedValue;
 		}
 
-		// 사용자가 입력 중이 아닐 때만 input 값 업데이트
 		if (speedInputEl && !speedInputEl.matches(':focus')) {
 			speedInputEl.value = speedValue;
 		}
-
-		log('Speed display updated to:', speedValue);
 	} catch (error) {
-		log('Error updating displays:', error);
+		console.error('Error updating displays:', error); // utils.log 대신 console.error 사용
 	}
 }
 
@@ -60,9 +49,9 @@ async function sendMessageToTab(tabId, message) {
 
 // setSpeed 함수 개선
 async function setSpeed(speed) {
-	log('Setting speed:', speed);
-	if (!isValidSpeed(speed)) {
-		log('Invalid speed value:', speed);
+	utils.log('Setting speed:', speed);
+	if (!utils.isValidSpeed(speed)) {
+		utils.log('Invalid speed value:', speed);
 		return;
 	}
 
@@ -76,7 +65,7 @@ async function setSpeed(speed) {
 
 		// 지원되지 않는 URL 체크 (chrome://, about:, file:// 등)
 		if (!tab.url?.startsWith('http')) {
-			log('Unsupported URL:', tab.url);
+			utils.log('Unsupported URL:', tab.url);
 			return;
 		}
 
@@ -89,12 +78,14 @@ async function setSpeed(speed) {
 			if (response?.success) {
 				updateSpeedDisplays(response.speed);
 				currentVideoSpeed = response.speed;
-				log('Speed update successful:', response.speed);
+				utils.log('Speed update successful:', response.speed);
 			} else if (response?.error) {
-				log('Error from content script:', response.error);
+				utils.log('Error from content script:', response.error);
 			}
 		} catch (error) {
-			log('Error sending message, attempting to reinject content script...');
+			utils.log(
+				'Error sending message, attempting to reinject content script...'
+			);
 
 			try {
 				await chrome.scripting.executeScript({
@@ -113,16 +104,22 @@ async function setSpeed(speed) {
 				if (response?.success) {
 					updateSpeedDisplays(response.speed);
 					currentVideoSpeed = response.speed;
-					log('Speed update successful after reinjection:', response.speed);
+					utils.log(
+						'Speed update successful after reinjection:',
+						response.speed
+					);
 				} else if (response?.error) {
-					log('Error from content script after reinjection:', response.error);
+					utils.log(
+						'Error from content script after reinjection:',
+						response.error
+					);
 				}
 			} catch (reinjectError) {
-				log('Failed to reinject content script:', reinjectError);
+				utils.log('Failed to reinject content script:', reinjectError);
 			}
 		}
 	} catch (error) {
-		log('Error setting speed:', error);
+		utils.log('Error setting speed:', error);
 		updateSpeedDisplays(currentVideoSpeed);
 	}
 }
@@ -140,7 +137,7 @@ async function getCurrentSpeed() {
 			tab.url.startsWith('edge://') ||
 			tab.url.startsWith('file://')
 		) {
-			log('Invalid or unsupported page:', tab?.url);
+			utils.log('Invalid or unsupported page:', tab?.url);
 			return { speed: currentVideoSpeed };
 		}
 
@@ -155,7 +152,9 @@ async function getCurrentSpeed() {
 
 			return { speed: currentVideoSpeed };
 		} catch (error) {
-			log('Error getting speed, attempting to reinject content script...');
+			utils.log(
+				'Error getting speed, attempting to reinject content script...'
+			);
 
 			try {
 				await chrome.scripting.executeScript({
@@ -174,13 +173,13 @@ async function getCurrentSpeed() {
 					return response;
 				}
 			} catch (reinjectError) {
-				log('Failed to reinject content script:', reinjectError);
+				utils.log('Failed to reinject content script:', reinjectError);
 			}
 
 			return { speed: currentVideoSpeed };
 		}
 	} catch (error) {
-		log('Speed check error:', error.message);
+		utils.log('Speed check error:', error.message);
 		return { speed: currentVideoSpeed };
 	}
 }
@@ -190,7 +189,7 @@ window.addEventListener('DOMContentLoaded', initializeApp);
 
 async function initializeApp() {
 	try {
-		log('Initializing app...');
+		utils.log('Initializing app...');
 
 		// 애니메이션 효과 추가
 		addAnimationEffects();
@@ -207,9 +206,11 @@ async function initializeApp() {
 		// 사이트별 설정 초기화
 		initializeSiteSettings();
 
-		log('App initialized successfully');
+		localizeHtmlPage();
+
+		utils.log('App initialized successfully');
 	} catch (error) {
-		log('Initialization error:', error);
+		utils.log('Initialization error:', error);
 	}
 }
 
@@ -264,84 +265,7 @@ function addAnimationEffects() {
 // 속도 입력 필드 초기화 - 성능 개선
 function initializeButtons() {
 	return new Promise((resolve) => {
-		const speedButtons = document.querySelectorAll('.speed-btn');
-		const speedInput = document.getElementById('speed-input');
-		let inputTimeout;
-
-		// 프리셋 버튼 이벤트 위임
-		document.addEventListener('click', (e) => {
-			const button = e.target.closest('.speed-btn');
-			if (!button) return;
-
-			e.preventDefault();
-			e.stopPropagation();
-			const speedValue = button.dataset.speed;
-			handleSpeedButtonClick(speedValue);
-		});
-
-		if (speedInput) {
-			// 입력값 변경 시 처리 - 디바운스 적용
-			speedInput.addEventListener(
-				'input',
-				debounce((e) => {
-					const speed = parseFloat(e.target.value);
-					if (isValidSpeed(speed)) {
-						setSpeed(speed);
-					}
-				}, 300)
-			);
-
-			// ...existing code...
-		}
-		resolve();
-	});
-}
-
-// 사이트별 설정 초기화
-function initializeSiteSettings() {
-	const addSiteButton = document.getElementById('add-site');
-	const siteList = document.getElementById('site-list');
-
-	if (addSiteButton) {
-		addSiteButton.addEventListener(
-			'click',
-			debounce(() => {
-				handleAddSite();
-			}, 300)
-		);
-	}
-
-	if (siteList) {
-		// 이벤트 위임으로 변경
-		siteList.addEventListener('click', (e) => {
-			const deleteButton = e.target.closest('.delete-site');
-			if (!deleteButton) return;
-
-			const pattern = deleteButton.dataset.pattern;
-			const siteItem = deleteButton.closest('.site-item');
-			handleDeleteSite(pattern, siteItem);
-		});
-	}
-
-	loadSiteList();
-}
-
-// 디바운스 함수 추가
-function debounce(func, wait) {
-	let timeout;
-	return function executedFunction(...args) {
-		const later = () => {
-			clearTimeout(timeout);
-			func(...args);
-		};
-		clearTimeout(timeout);
-		timeout = setTimeout(later, wait);
-	};
-}
-
-function initializeButtons() {
-	return new Promise((resolve) => {
-		log('Initializing buttons');
+		utils.log('Initializing buttons');
 
 		// 프리셋 버튼 초기화
 		const speedButtons = document.querySelectorAll('.speed-btn');
@@ -352,7 +276,7 @@ function initializeButtons() {
 				const speedValue = button.dataset.speed;
 
 				// 상대적 속도 변경 버튼 처리 (+1, -1, +0.1, -0.1)
-				if (['+1', '-1', '+0.1', '-0.1'].includes(speedValue)) {
+				if (['+1', '-1', '+0.1', -0.1].includes(speedValue)) {
 					const currentSpeed = parseFloat(
 						document.getElementById('current-speed').textContent
 					);
@@ -376,15 +300,15 @@ function initializeButtons() {
 					// 소수점 첫째자리까지 반올림
 					newSpeed = Math.round(newSpeed * 10) / 10;
 
-					if (isValidSpeed(newSpeed)) {
-						log('Relative speed button clicked:', newSpeed);
+					if (utils.isValidSpeed(newSpeed)) {
+						utils.log('Relative speed button clicked:', newSpeed);
 						setSpeed(newSpeed);
 					}
 				} else {
 					// 일반 프리셋 버튼 처리
 					const speed = parseFloat(speedValue);
-					log('Speed button clicked:', speed);
-					if (isValidSpeed(speed)) {
+					utils.log('Speed button clicked:', speed);
+					if (utils.isValidSpeed(speed)) {
 						setSpeed(speed);
 					}
 				}
@@ -400,7 +324,7 @@ function initializeButtons() {
 			speedInput.addEventListener('input', (e) => {
 				clearTimeout(inputTimeout);
 				const speed = parseFloat(e.target.value);
-				if (isValidSpeed(speed)) {
+				if (utils.isValidSpeed(speed)) {
 					inputTimeout = setTimeout(() => {
 						setSpeed(speed);
 					}, 300); // 300ms 디바운스
@@ -412,7 +336,7 @@ function initializeButtons() {
 				if (e.key === 'Enter') {
 					clearTimeout(inputTimeout);
 					const speed = parseFloat(speedInput.value);
-					if (isValidSpeed(speed)) {
+					if (utils.isValidSpeed(speed)) {
 						setSpeed(speed);
 						speedInput.blur();
 					}
@@ -423,7 +347,7 @@ function initializeButtons() {
 			speedInput.addEventListener('blur', () => {
 				clearTimeout(inputTimeout);
 				const speed = parseFloat(speedInput.value);
-				if (isValidSpeed(speed)) {
+				if (utils.isValidSpeed(speed)) {
 					setSpeed(speed);
 				}
 			});
@@ -446,7 +370,7 @@ function initializeSiteSettings() {
 				return;
 			}
 
-			if (!isValidSpeed(speed)) {
+			if (!utils.isValidSpeed(speed)) {
 				alert('유효한 속도를 입력해주세요 (0.1 ~ 16).');
 				return;
 			}
@@ -505,7 +429,9 @@ function loadSiteList() {
 				div.className = 'site-item adding';
 				div.innerHTML = `
                     <span>${pattern} (${speed}x)</span>
-                    <button class="delete-site" data-pattern="${pattern}">삭제</button>
+                    <button class="delete-site" data-pattern="${pattern}">${chrome.i18n.getMessage(
+					'delete'
+				)}</button>
                 `;
 				siteList.appendChild(div);
 
@@ -518,7 +444,7 @@ function loadSiteList() {
 			// 저장된 사이트가 없는 경우 메시지 표시
 			const emptyMessage = document.createElement('div');
 			emptyMessage.className = 'empty-message';
-			emptyMessage.textContent = '저장된 사이트가 없습니다.';
+			emptyMessage.textContent = chrome.i18n.getMessage('noSites');
 			emptyMessage.style.textAlign = 'center';
 			emptyMessage.style.color = '#64748b';
 			emptyMessage.style.padding = '10px';
@@ -556,9 +482,9 @@ async function saveShortcuts() {
 			speedPopupShortcut,
 		});
 
-		log('Shortcuts saved:', { shortcuts, speedPopupShortcut });
+		utils.log('Shortcuts saved:', { shortcuts, speedPopupShortcut });
 	} catch (error) {
-		log('Error saving shortcuts:', error);
+		utils.log('Error saving shortcuts:', error);
 	}
 }
 
@@ -586,9 +512,9 @@ async function loadSavedSettings() {
 		// 단축키 입력 필드 업데이트
 		updateShortcutInputs(settings);
 
-		log('Settings loaded:', settings);
+		utils.log('Settings loaded:', settings);
 	} catch (error) {
-		log('Error loading settings:', error);
+		utils.log('Error loading settings:', error);
 	}
 }
 
@@ -624,4 +550,29 @@ function updateShortcutInputs(settings) {
 			input.dataset.shortcut = speedPopupShortcut;
 		}
 	}
+}
+
+// HTML 요소에 i18n 메시지 적용하는 함수 추가
+function localizeHtmlPage() {
+	const elements = document.querySelectorAll('[data-i18n]');
+	elements.forEach((element) => {
+		const key = element.getAttribute('data-i18n');
+		element.textContent = chrome.i18n.getMessage(key);
+	});
+
+	// placeholder 속성
+	document.querySelectorAll('[data-i18n-placeholder]').forEach((element) => {
+		const message = chrome.i18n.getMessage(
+			element.getAttribute('data-i18n-placeholder')
+		);
+		if (message) element.placeholder = message;
+	});
+
+	// aria-label 속성
+	document.querySelectorAll('[data-i18n-aria]').forEach((element) => {
+		const message = chrome.i18n.getMessage(
+			element.getAttribute('data-i18n-aria')
+		);
+		if (message) element.setAttribute('aria-label', message);
+	});
 }

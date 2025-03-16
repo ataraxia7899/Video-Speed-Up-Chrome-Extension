@@ -1,8 +1,9 @@
 {
 	"manifest_version": 3,
-	"name": "Video Speed Controller",
+	"name": "__MSG_extName__",
 	"version": "0.0.0.1",
-	"description": "비디오 재생 속도를 쉽게 제어할 수 있는 확장 프로그램입니다. 사이트별 자동 설정과 단축키를 지원합니다.",
+	"description": "__MSG_extDescription__",
+	"default_locale": "en",
 	"author": {
 		"email": "your-email@example.com"
 	},
