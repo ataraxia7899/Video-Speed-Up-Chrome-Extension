@@ -1,7 +1,7 @@
 # Video Speed Controller 🎥
 
 브라우저에서 비디오 재생 속도를 쉽게 제어할 수 있는 Chrome/Edge 확장 프로그램입니다.
-[크롬 웹스토어](https://chromewebstore.google.com/detail/%EB%B9%84%EB%94%94%EC%98%A4-%EC%86%8D%EB%8F%84-%EC%BB%A8%ED%8A%B8%EB%A1%A4%EB%9F%AC/begolcfbgiopgodhfijbppokmnddchei?authuser=6&hl=ko '배속 확장프로그램')
+크롬 확장 웹스토어에 올렸습니다. : [크롬 웹스토어](https://chromewebstore.google.com/detail/%EB%B9%84%EB%94%94%EC%98%A4-%EC%86%8D%EB%8F%84-%EC%BB%A8%ED%8A%B8%EB%A1%A4%EB%9F%AC/begolcfbgiopgodhfijbppokmnddchei?authuser=6&hl=ko '배속 확장프로그램 다운')
 
 ## 개발 진행상황 📝
 
@@ -98,16 +98,13 @@
 
 ## 설치 방법 🚀
 
-~~
+~~1. 이 저장소를 클론하거나 다운로드합니다.~~
+~~2. Chrome/Edge 브라우저에서 `chrome://extensions` 또는 `edge://extensions`로 이동합니다.~~
+~~3. 우측 상단의 "개발자 모드"를 활성화합니다.~~
+~~4. "압축해제된 확장 프로그램을 로드합니다" 버튼을 클릭합니다.~~
+~~5. 다운로드한 폴더를 선택합니다.~~
 
-1. 이 저장소를 클론하거나 다운로드합니다.
-2. Chrome/Edge 브라우저에서 `chrome://extensions` 또는 `edge://extensions`로 이동합니다.
-3. 우측 상단의 "개발자 모드"를 활성화합니다.
-4. "압축해제된 확장 프로그램을 로드합니다" 버튼을 클릭합니다.
-5. 다운로드한 폴더를 선택합니다.
-   ~~
-
-[크롬 웹스토어](https://chromewebstore.google.com/detail/%EB%B9%84%EB%94%94%EC%98%A4-%EC%86%8D%EB%8F%84-%EC%BB%A8%ED%8A%B8%EB%A1%A4%EB%9F%AC/begolcfbgiopgodhfijbppokmnddchei?authuser=6&hl=ko '배속 확장프로그램')
+1. 스토어에 올릴 수 있었기 때문에 다음 하이퍼링크를 통해 다운이 가능합니다. [크롬 웹스토어](https://chromewebstore.google.com/detail/%EB%B9%84%EB%94%94%EC%98%A4-%EC%86%8D%EB%8F%84-%EC%BB%A8%ED%8A%B8%EB%A1%A4%EB%9F%AC/begolcfbgiopgodhfijbppokmnddchei?authuser=6&hl=ko '배속 확장프로그램 다운')
 
 ## 사용 방법 📝
 
