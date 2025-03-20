@@ -473,7 +473,10 @@
 	function handleUrlChange(newUrl) {
 		// 쓰로틀링 및 중복 체크
 		const now = Date.now();
-		if (state.currentUrl === newUrl || now - state.lastEventTime < state.throttleDelay) {
+		if (
+			state.currentUrl === newUrl ||
+			now - state.lastEventTime < state.throttleDelay
+		) {
 			return;
 		}
 		state.lastEventTime = now;
@@ -494,21 +497,23 @@
 				return true;
 			} catch (error) {
 				console.error(`Reinitialization attempt ${attempt + 1} failed:`, error);
-				
-				if (attempt < state.MAX_RETRIES && 
-					error.message.includes('Extension context invalidated')) {
+
+				if (
+					attempt < state.MAX_RETRIES &&
+					error.message.includes('Extension context invalidated')
+				) {
 					// 재시도 간격을 점진적으로 증가
 					const delay = state.RETRY_DELAY * Math.pow(2, attempt);
-					await new Promise(resolve => setTimeout(resolve, delay));
+					await new Promise((resolve) => setTimeout(resolve, delay));
 					return reinitialize(attempt + 1);
 				}
-				
+
 				throw error;
 			}
 		};
 
 		// 재초기화 시도
-		reinitialize().catch(error => {
+		reinitialize().catch((error) => {
 			console.error('Final reinitialization error:', error);
 			resetState();
 		});
@@ -569,7 +574,7 @@
 
 			urlObserver.observe(document.body, {
 				subtree: true,
-				childList: true
+				childList: true,
 			});
 
 			state.cleanup.add(() => {
@@ -772,7 +777,7 @@
 			// 런타임 상태 테스트
 			return new Promise((resolve) => {
 				try {
-					chrome.runtime.sendMessage({ action: 'ping' }, response => {
+					chrome.runtime.sendMessage({ action: 'ping' }, (response) => {
 						const validContext = !chrome.runtime.lastError && response?.success;
 						resolve(validContext);
 					});
