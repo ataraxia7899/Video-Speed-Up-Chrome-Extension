@@ -24,8 +24,12 @@
 		"description": "Site settings section title"
 	},
 	"urlPatternPlaceholder": {
-		"message": "URL pattern (e.g., *.youtube.com)",
+		"message": "URL pattern (e.g., .youtube.com)",
 		"description": "URL pattern input placeholder"
+	},
+	"urlPatternExample": {
+		"message": "URL pattern (e.g., .youtube.com/* )",
+		"description": "URL pattern input example"
 	},
 	"speedPlaceholder": {
 		"message": "Playback speed",

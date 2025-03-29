@@ -24,8 +24,12 @@
 		"description": "사이트 설정 섹션 제목"
 	},
 	"urlPatternPlaceholder": {
-		"message": "URL 패턴 (예: *.youtube.com)",
+		"message": "URL 패턴 (예: .youtube.com)",
 		"description": "URL 패턴 입력 플레이스홀더"
+	},
+	"urlPatternExample": {
+		"message": "URL 패턴 (예: .youtube.com/* )",
+		"description": "URL 패턴 입력 예시"
 	},
 	"speedPlaceholder": {
 		"message": "재생 속도",
