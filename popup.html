@@ -283,11 +283,6 @@
 				border-color: rgba(99, 102, 241, 0.2);
 			}
 
-			.shortcut-section {
-				margin-top: 20px;
-				padding-top: 20px;
-			}
-
 			.site-row {
 				display: flex;
 				flex-direction: column;
@@ -369,38 +364,6 @@
 
 			.site-item button:hover {
 				background: rgba(239, 68, 68, 0.2);
-			}
-
-			.shortcut-input {
-				width: 150px !important;
-				text-align: center;
-				cursor: pointer;
-				background-color: var(--input-bg);
-				border: 1px solid var(--border-color);
-				user-select: none;
-				transition: all 0.2s ease-in-out;
-				padding: 10px 14px;
-				border-radius: 10px;
-				font-size: 0.9rem;
-			}
-
-			.shortcut-input:focus {
-				background-color: rgba(255, 255, 255, 0.95);
-				outline: none;
-				border-color: var(--primary-color);
-				box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-			}
-
-			.shortcut-input.listening {
-				background-color: rgba(255, 255, 255, 0.95);
-				border-color: var(--primary-color);
-				box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-				color: var(--primary-color);
-			}
-
-			.shortcut-input:hover {
-				background-color: rgba(255, 255, 255, 0.95);
-				border-color: var(--border-color);
 			}
 
 			/* 리플 효과 스타일 */
@@ -505,40 +468,6 @@
 			::-webkit-scrollbar-thumb:hover {
 				background: rgba(148, 163, 184, 0.8);
 			}
-
-			.speed-adjust-section {
-				background: rgba(255, 255, 255, 0.5);
-				border-radius: 12px;
-				padding: 15px;
-				margin-top: 15px;
-				border: 1px solid rgba(226, 232, 240, 0.8);
-				box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
-			}
-
-			.speed-adjust-section h5 {
-				font-size: 0.9rem;
-				font-weight: 600;
-				color: #4b5563;
-				margin: 0 0 10px 0;
-				text-align: center;
-				position: relative;
-			}
-
-			.speed-adjust-section h5::after {
-				content: '';
-				position: absolute;
-				bottom: -5px;
-				left: 50%;
-				transform: translateX(-50%);
-				width: 40px;
-				height: 2px;
-				background: linear-gradient(
-					90deg,
-					rgba(99, 102, 241, 0.2),
-					rgba(99, 102, 241, 0.6)
-				);
-				border-radius: 2px;
-			}
 		</style>
 	</head>
 	<body>
@@ -623,9 +552,10 @@
 				<input
 					type="text"
 					id="site-url"
-					placeholder="URL 패턴 (예: *.youtube.com)"
+					placeholder="URL 패턴 (예: .youtube.com/* )"
 					aria-label="URL 패턴 입력"
 					data-i18n-placeholder="urlPatternPlaceholder"
+					data-i18n-aria="inputUrlAriaLabel"
 				/>
 				<input
 					type="number"
@@ -637,12 +567,40 @@
 					placeholder="재생 속도"
 					aria-label="사이트별 재생 속도 입력"
 					data-i18n-placeholder="speedPlaceholder"
+					data-i18n-aria="inputSpeedAriaLabel"
 				/>
-				<button id="add-site" data-i18n="addButton">추가</button>
+				<button
+					id="add-site"
+					data-i18n="addButton"
+					data-i18n-aria="addSiteSpeed"
+				>
+					추가
+				</button>
 			</div>
 			<div id="site-list">
 				<!-- 저장된 사이트 목록이 여기에 표시됩니다 -->
 			</div>
+			<!-- 사이트 아이템 템플릿 업데이트 -->
+			<template id="site-item-template">
+				<div class="site-info">
+					<label class="toggle-switch">
+						<input
+							type="checkbox"
+							class="toggle-input"
+							data-i18n-aria="toggleSiteSpeed"
+						/>
+						<span class="toggle-label"></span>
+					</label>
+					<span class="site-pattern"></span>
+				</div>
+				<button
+					class="delete-site"
+					data-i18n="delete"
+					data-i18n-aria="deleteSite"
+				>
+					삭제
+				</button>
+			</template>
 		</div>
 
 		<div class="card info-section">

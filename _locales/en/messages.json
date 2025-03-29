@@ -58,5 +58,29 @@
 	"speedInput": {
 		"message": "Input Speed",
 		"description": "Speed input label"
+	},
+	"invalidSpeed": {
+		"message": "Please enter a valid speed (0.1 ~ 16).",
+		"description": "Invalid speed input message"
+	},
+	"urlRequired": {
+		"message": "Please enter a URL pattern.",
+		"description": "URL pattern required message"
+	},
+	"inputSpeedAriaLabel": {
+		"message": "Enter playback speed",
+		"description": "Playback speed input accessibility label"
+	},
+	"toggleSiteSpeed": {
+		"message": "Toggle site-specific speed setting",
+		"description": "Site setting toggle button accessibility label"
+	},
+	"deleteSite": {
+		"message": "Delete site setting",
+		"description": "Delete site setting button accessibility label"
+	},
+	"addSiteSpeed": {
+		"message": "Add site-specific speed setting",
+		"description": "Add site-specific speed setting button accessibility label"
 	}
 }

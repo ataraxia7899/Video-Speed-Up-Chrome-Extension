@@ -517,62 +517,34 @@ function updateSiteSettings(pattern, speed, enabled) {
 
 async function saveShortcuts() {
 	try {
-		const shortcuts = {
-			speedup: {
-				keys:
-					document.getElementById('speedup-shortcut')?.dataset.shortcut ||
-					'Ctrl + Shift + Up',
-				value: parseFloat(
-					document.getElementById('speedup-value')?.value || 0.25
-				),
-			},
-			speeddown: {
-				keys:
-					document.getElementById('speeddown-shortcut')?.dataset.shortcut ||
-					'Ctrl + Shift + Down',
-				value: parseFloat(
-					document.getElementById('speeddown-value')?.value || 0.25
-				),
-			},
-		};
-
 		const speedPopupShortcut =
 			document.getElementById('popup-shortcut')?.dataset.shortcut || 'Ctrl + .';
 
 		await chrome.storage.sync.set({
-			shortcuts,
 			speedPopupShortcut,
 		});
 
-		utils.log('Shortcuts saved:', { shortcuts, speedPopupShortcut });
+		utils.log('Settings saved:', { speedPopupShortcut });
 	} catch (error) {
-		utils.log('Error saving shortcuts:', error);
+		utils.log('Error saving settings:', error);
 	}
 }
 
 async function loadSavedSettings() {
 	try {
 		const result = await new Promise((resolve) => {
-			chrome.storage.sync.get(['shortcuts', 'speedPopupShortcut'], resolve);
+			chrome.storage.sync.get(['speedPopupShortcut'], resolve);
 		});
 
 		// 기본값 설정
 		const defaults = {
-			shortcuts: {
-				speedup: { keys: 'Ctrl + Shift + Up', value: 0.25 },
-				speeddown: { keys: 'Ctrl + Shift + Down', value: 0.25 },
-			},
 			speedPopupShortcut: 'Ctrl + .',
 		};
 
 		const settings = {
-			shortcuts: result.shortcuts || defaults.shortcuts,
 			speedPopupShortcut:
 				result.speedPopupShortcut || defaults.speedPopupShortcut,
 		};
-
-		// 단축키 입력 필드 업데이트
-		updateShortcutInputs(settings);
 
 		utils.log('Settings loaded:', settings);
 	} catch (error) {
@@ -581,35 +553,14 @@ async function loadSavedSettings() {
 }
 
 function updateShortcutInputs(settings) {
-	const { shortcuts, speedPopupShortcut } = settings;
-
-	// 속도 증가/감소 단축키
-	if (shortcuts.speedup) {
-		const input = document.getElementById('speedup-shortcut');
-		const value = document.getElementById('speedup-value');
-		if (input && value) {
-			input.value = shortcuts.speedup.keys;
-			input.dataset.shortcut = shortcuts.speedup.keys;
-			value.value = shortcuts.speedup.value;
-		}
-	}
-
-	if (shortcuts.speeddown) {
-		const input = document.getElementById('speeddown-shortcut');
-		const value = document.getElementById('speeddown-value');
-		if (input && value) {
-			input.value = shortcuts.speeddown.keys;
-			input.dataset.shortcut = shortcuts.speeddown.keys;
-			value.value = shortcuts.speeddown.value;
-		}
-	}
+	const { speedPopupShortcut } = settings;
 
 	// 팝업 단축키
 	if (speedPopupShortcut) {
 		const input = document.getElementById('popup-shortcut');
 		if (input) {
-			input.value = speedPopupShortcut;
 			input.dataset.shortcut = speedPopupShortcut;
+			input.value = speedPopupShortcut;
 		}
 	}
 }

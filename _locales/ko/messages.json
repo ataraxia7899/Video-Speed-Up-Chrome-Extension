@@ -58,5 +58,29 @@
 	"speedInput": {
 		"message": "속도 입력",
 		"description": "속도 입력 라벨"
+	},
+	"invalidSpeed": {
+		"message": "유효한 속도를 입력해주세요 (0.1 ~ 16).",
+		"description": "잘못된 속도 입력 메시지"
+	},
+	"urlRequired": {
+		"message": "URL 패턴을 입력해주세요.",
+		"description": "URL 패턴 필수 입력 메시지"
+	},
+	"inputSpeedAriaLabel": {
+		"message": "재생 속도 입력",
+		"description": "재생 속도 입력 접근성 라벨"
+	},
+	"toggleSiteSpeed": {
+		"message": "사이트별 속도 설정 토글",
+		"description": "사이트별 설정 토글 버튼 접근성 라벨"
+	},
+	"deleteSite": {
+		"message": "사이트 설정 삭제",
+		"description": "사이트 설정 삭제 버튼 접근성 라벨"
+	},
+	"addSiteSpeed": {
+		"message": "사이트별 속도 설정 추가",
+		"description": "사이트별 속도 설정 추가 버튼 접근성 라벨"
 	}
 }

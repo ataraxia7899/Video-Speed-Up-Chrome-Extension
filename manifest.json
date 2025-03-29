@@ -7,8 +7,8 @@
 	"author": {
 		"email": "your-email@example.com"
 	},
-	"permissions": ["storage", "activeTab", "scripting"],
-	"host_permissions": ["*://*/*"],
+	"permissions": ["storage", "activeTab", "scripting", "webNavigation", "tabs"],
+	"host_permissions": ["*://*/*", "*://www.youtube.com/*", "*://youtube.com/*"],
 	"action": {
 		"default_popup": "popup.html",
 		"default_icon": {
@@ -27,12 +27,15 @@
 			"matches": ["*://*/*"],
 			"js": ["content.js"],
 			"run_at": "document_start",
-			"world": "ISOLATED"
+			"world": "MAIN",
+			"all_frames": false,
+			"match_about_blank": true
 		}
 	],
 	"background": {
 		"service_worker": "background.js",
-		"type": "module"
+		"type": "module",
+		"persisted": true
 	},
 	"commands": {
 		"open-speed-popup": {
@@ -45,7 +48,9 @@
 	"web_accessible_resources": [
 		{
 			"resources": ["content.js"],
-			"matches": ["*://*/*"]
+			"matches": ["*://*/*"],
+			"use_dynamic_url": true
 		}
-	]
+	],
+	"incognito": "split"
 }
