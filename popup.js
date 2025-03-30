@@ -276,7 +276,7 @@ function initializeButtons() {
 				const speedValue = button.dataset.speed;
 
 				// 상대적 속도 변경 버튼 처리 (+1, -1, +0.1, -0.1)
-				if (['+1', '-1', '+0.1', -0.1].includes(speedValue)) {
+				if (['+1', '-1', '+0.1', '-0.1'].includes(speedValue)) {
 					const currentSpeed = parseFloat(
 						document.getElementById('current-speed').textContent
 					);
