@@ -49,6 +49,40 @@
     recoveryMode: false
   };
 
+  // 다크모드 설정 추가
+  const darkModeState = {
+    isDark: false
+  };
+
+  // 다크모드 상태 로드
+  async function loadDarkModeState() {
+    try {
+      const result = await chrome.storage.sync.get(['darkMode']);
+      darkModeState.isDark = result.darkMode || false;
+    } catch (error) {
+      console.error('다크모드 설정 로드 실패:', error);
+    }
+  }
+
+  // 다크모드 상태 저장
+  async function saveDarkModeState() {
+    try {
+      await chrome.storage.sync.set({ darkMode: darkModeState.isDark });
+    } catch (error) {
+      console.error('다크모드 설정 저장 실패:', error);
+    }
+  }
+
+  // 다크모드 토글 함수
+  function toggleDarkMode() {
+    darkModeState.isDark = !darkModeState.isDark;
+    saveDarkModeState();
+    const popup = document.getElementById('speed-input-popup');
+    if (popup) {
+      popup.classList.toggle('dark-mode');
+    }
+  }
+
   // 오류 로깅 최적화 함수
   function throttledError(message, error = null) {
     const now = Date.now();
@@ -408,6 +442,7 @@
   // 초기화 함수 개선
   async function initialize() {
     try {
+      await loadDarkModeState();
       await establishConnection();
       
       // 상태 초기화
@@ -663,27 +698,123 @@
   function createSpeedInputPopup() {
     const popup = document.createElement('div');
     popup.id = 'speed-input-popup';
-    popup.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #ffffff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
-      z-index: 2147483647;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      min-width: 200px;  /* 240px에서 200px로 변경 */
-      max-width: 200px;  /* 최대 너비 추가 */
-    `;
-
+    if (darkModeState.isDark) {
+      popup.classList.add('dark-mode');
+    }
+    
     // 스타일 추가
     const style = document.createElement('style');
     style.textContent = `
+      #speed-input-popup {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+        z-index: 2147483647;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        min-width: 200px;
+        max-width: 200px;
+        transition: all 0.3s ease;
+      }
+
+      #speed-input-popup.dark-mode {
+        background: #1a1d21;
+        color: #e4e6eb;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+      }
+
+      .popup-title {
+        font-size: 18px;
+        font-weight: 600;
+        text-align: center;
+        margin: 0;
+        padding: 0;
+        color: #1a1a1a;
+      }
+
+      .dark-mode .popup-title {
+        color: #e4e6eb;
+      }
+
+      .input-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .speed-input {
+        width: 120px;
+        padding: 12px;
+        font-size: 20px;
+        text-align: center;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        outline: none;
+        transition: all 0.2s ease;
+        margin: 0 auto;
+        display: block;
+      }
+
+      .dark-mode .speed-input {
+        background: #2d2d2d;
+        border-color: #404040;
+        color: #e4e6eb;
+      }
+
+      .speed-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+      }
+
+      .dark-mode .speed-input:focus {
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+      }
+
+      .info-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #f8fafc;
+        border-radius: 6px;
+        padding: 8px;
+      }
+
+      .dark-mode .info-container {
+        background: #2d2d2d;
+      }
+
+      .shortcut-info {
+        color: #64748b;
+        font-size: 13px;
+        flex-grow: 1;
+        margin-right: 8px;
+      }
+
+      .dark-mode .shortcut-info {
+        color: #94a3b8;
+      }
+
+      .shortcut-key {
+        background: #e2e8f0;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 500;
+        color: #475569;
+      }
+
+      .dark-mode .shortcut-key {
+        background: #404040;
+        color: #e4e6eb;
+      }
+
       @keyframes fadeInScale {
         from {
           opacity: 0;
@@ -694,94 +825,58 @@
           transform: translate(-50%, -50%) scale(1);
         }
       }
+
       #speed-input-popup {
         animation: fadeInScale 0.2s ease-out;
         border: 1px solid rgba(0, 0, 0, 0.1);
       }
-      #speed-input-popup input::-webkit-outer-spin-button,
-      #speed-input-popup input::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-      }
-      #speed-input-popup input[type=number] {
-        -moz-appearance: textfield;
-      }
-      .popup-title {
-        color: #1a1a1a;
-        font-size: 18px;
-        font-weight: 600;
-        text-align: center;
-        margin: 0;
-        padding: 0;
-      }
-      .input-container {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      .speed-input {
-        width: 120px;  /* input 박스 너비 조정 */
-        padding: 12px;
-        font-size: 20px;
-        text-align: center;
-        border: 2px solid #e2e8f0;
-        border-radius: 8px;
-        outline: none;
-        transition: all 0.2s ease;
-        margin: 0 auto;  /* 중앙 정렬을 위해 추가 */
-        display: block;  /* 블록 레벨 요소로 변경 */
-      }
-      .speed-input:focus {
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-      }
-      .shortcut-info {
-        color: #64748b;
-        font-size: 13px;
-        text-align: center;
-        padding: 8px;
-        background: #f8fafc;
-        border-radius: 6px;
-        margin-top: -4px;
-      }
-      .shortcut-key {
-        background: #e2e8f0;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-weight: 500;
-        color: #475569;
+
+      #speed-input-popup.dark-mode {
+        border-color: rgba(255, 255, 255, 0.1);
       }
     `;
     document.head.appendChild(style);
 
-    // 제목 추가
     const title = document.createElement('div');
     title.className = 'popup-title';
     title.textContent = '재생 속도 설정';
 
-	// 입력 컨테이너
-	const inputContainer = document.createElement('div');
-	inputContainer.className = 'input-container';
+    const inputContainer = document.createElement('div');
+    inputContainer.className = 'input-container';
 
-	// 입력 필드
-	const input = document.createElement('input');
-	input.type = 'number';
-	input.className = 'speed-input';
-	input.min = '0.1';
-	input.max = '16';
-	input.step = '0.1';
-	input.value = document.querySelector('video')?.playbackRate || '1.0';
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'speed-input';
+    input.min = '0.1';
+    input.max = '16';
+    input.step = '0.1';
+    input.value = document.querySelector('video')?.playbackRate || '1.0';
 
-    // 단축키 정보
+    const infoContainer = document.createElement('div');
+    infoContainer.className = 'info-container';
+
     const shortcutInfo = document.createElement('div');
     shortcutInfo.className = 'shortcut-info';
     shortcutInfo.innerHTML = '<span class="shortcut-key">Enter</span> 적용 | <span class="shortcut-key">ESC</span> 취소';
 
-    // 요소 조립
+    const darkModeButton = document.createElement('button');
+    darkModeButton.className = 'dark-mode-toggle';
+    darkModeButton.innerHTML = darkModeState.isDark ? '🌞' : '🌙';
+    darkModeButton.title = darkModeState.isDark ? '라이트 모드로 전환' : '다크 모드로 전환';
+    darkModeButton.onclick = (e) => {
+      e.stopPropagation();
+      toggleDarkMode();
+      darkModeButton.innerHTML = darkModeState.isDark ? '🌞' : '🌙';
+      darkModeButton.title = darkModeState.isDark ? '라이트 모드로 전환' : '다크 모드로 전환';
+    };
+
+    infoContainer.appendChild(shortcutInfo);
+    infoContainer.appendChild(darkModeButton);
     inputContainer.appendChild(input);
+
     popup.appendChild(title);
     popup.appendChild(inputContainer);
-    popup.appendChild(shortcutInfo);
+    popup.appendChild(infoContainer);
 
     return { popup, input };
   }
