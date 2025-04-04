@@ -90,5 +90,9 @@
 	"speedRangeInfo": {
 		"message": "Supports speeds from 0.1x to 16x",
 		"description": "Speed input range information"
+	},
+	"shortcutSettingsNote": {
+		"message": "Shortcuts can be changed in Chrome Settings > Extensions > Keyboard shortcuts",
+		"description": "Shortcut settings guidance note"
 	}
 }

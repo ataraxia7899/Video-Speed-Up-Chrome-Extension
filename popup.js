@@ -47,6 +47,48 @@ async function sendMessageToTab(tabId, message) {
 	});
 }
 
+// 사용자 설정 저장 함수 개선
+async function saveUserPreferences() {
+    try {
+        const currentSettings = {
+            lastUsedSpeed: document.getElementById('current-speed').textContent,
+            speedInputValue: document.getElementById('speed-input').value,
+            timestamp: Date.now()
+        };
+
+        await chrome.storage.sync.set({ userPreferences: currentSettings });
+        utils.log('User preferences saved:', currentSettings);
+    } catch (error) {
+        utils.log('Error saving preferences:', error);
+    }
+}
+
+// 저장된 사용자 설정 불러오기 함수 개선
+async function loadUserPreferences() {
+    try {
+        const result = await chrome.storage.sync.get(['userPreferences']);
+        const preferences = result.userPreferences;
+
+        if (preferences) {
+            // 마지막으로 사용한 속도 복원
+            if (preferences.lastUsedSpeed) {
+                updateSpeedDisplays(preferences.lastUsedSpeed);
+                setSpeed(parseFloat(preferences.lastUsedSpeed));
+            }
+
+            // 속도 입력 필드 값 복원
+            const speedInput = document.getElementById('speed-input');
+            if (speedInput && preferences.speedInputValue) {
+                speedInput.value = preferences.speedInputValue;
+            }
+
+            utils.log('User preferences loaded:', preferences);
+        }
+    } catch (error) {
+        utils.log('Error loading preferences:', error);
+    }
+}
+
 // setSpeed 함수 개선
 async function setSpeed(speed) {
 	utils.log('Setting speed:', speed);
@@ -122,6 +164,9 @@ async function setSpeed(speed) {
 		utils.log('Error setting speed:', error);
 		updateSpeedDisplays(currentVideoSpeed);
 	}
+
+    // 속도 변경 후 설정 저장
+    await saveUserPreferences();
 }
 
 // 현재 속도 가져오기 함수 개선
@@ -190,6 +235,9 @@ window.addEventListener('DOMContentLoaded', initializeApp);
 async function initializeApp() {
 	try {
 		utils.log('Initializing app...');
+
+        // 저장된 사용자 설정 로드
+        await loadUserPreferences();
 
 		// 애니메이션 효과 추가
 		addAnimationEffects();

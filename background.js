@@ -49,11 +49,48 @@
 		},
 		ports: new Map(),
 		portStates: new Map(),
+		debugMode: false,
+		errorTracking: {
+			lastError: 0,
+			errorCount: 0,
+			errorThreshold: 5000,
+			maxErrorsInThreshold: 3,
+		},
 	};
 
 	function log(...args) {
 		if (BackgroundController.DEBUG) {
 			console.log('[Background]', new Date().toISOString(), ...args);
+		}
+	}
+
+	// 오류 로깅 최적화
+	function throttledLog(type, message, error = null) {
+		if (!BackgroundController.debugMode && type === 'debug') {
+			return;
+		}
+
+		const now = Date.now();
+		const tracking = BackgroundController.errorTracking;
+
+		if (now - tracking.lastError > tracking.errorThreshold) {
+			tracking.errorCount = 0;
+		}
+
+		if (tracking.errorCount < tracking.maxErrorsInThreshold) {
+			const timestamp = new Date().toISOString();
+			if (error) {
+				console[type](`[${timestamp}] ${message}`, error);
+			} else {
+				console[type](`[${timestamp}] ${message}`);
+			}
+			if (type === 'error') {
+				tracking.errorCount++;
+			}
+		}
+
+		if (type === 'error') {
+			tracking.lastError = now;
 		}
 	}
 
@@ -88,19 +125,38 @@
 	// Content Script 주입 함수 개선
 	async function injectContentScript(tabId, url) {
 		try {
-			// chrome:// 및 edge:// URL 체크
 			if (!url || url.startsWith('chrome://') || url.startsWith('edge://')) {
 				return false;
 			}
+
+			try {
+				await chrome.tabs.sendMessage(tabId, { action: 'cleanup' });
+			} catch {}
+
+			await new Promise(resolve => setTimeout(resolve, 50));
 
 			await chrome.scripting.executeScript({
 				target: { tabId },
 				files: ['content.js']
 			});
 
-			return true;
+			const response = await new Promise((resolve) => {
+				const checkScript = () => {
+					chrome.tabs.sendMessage(tabId, { action: 'ping' }, (response) => {
+						if (chrome.runtime.lastError) {
+							setTimeout(checkScript, 50);
+						} else {
+							resolve(response?.success);
+						}
+					});
+				};
+				checkScript();
+				setTimeout(() => resolve(false), 2000);
+			});
+
+			return response === true;
 		} catch (error) {
-			console.error(`Failed to inject content script in tab ${tabId}:`, error);
+			throttledLog('error', `Failed to inject content script in tab ${tabId}:`, error);
 			return false;
 		}
 	}
@@ -139,7 +195,7 @@
 		return newQueue;
 	}
 
-	// Content Script 재주입 함수 개선
+	// Content Script 재주입 최적화
 	async function reinjectContentScript(tabId) {
 		const pageState = BackgroundController.pageStates.get(tabId) || {
 			injectionAttempts: 0,
@@ -156,62 +212,27 @@
 				return;
 			}
 
-			// 이전 복구 타임아웃 취소
 			if (pageState.recoveryTimeout) {
 				clearTimeout(pageState.recoveryTimeout);
 				pageState.recoveryTimeout = null;
 			}
 
-			// Content script 정리
-			await chrome.scripting.executeScript({
-				target: { tabId },
-				function: () => {
-					window.dispatchEvent(new Event('content-script-cleanup'));
-				},
-			});
-
-			// 잠시 대기하여 정리 완료 보장
-			await new Promise((resolve) => setTimeout(resolve, 100));
-
-			// Content script 주입
 			await chrome.scripting.executeScript({
 				target: { tabId },
 				files: ['content.js'],
 			});
 
-			// 초기화 확인
-			const response = await new Promise((resolve, reject) => {
-				const timeout = setTimeout(
-					() => reject(new Error('Initialization timeout')),
-					5000
-				);
-
-				chrome.tabs.sendMessage(
-					tabId,
-					{ action: 'initializeCheck' },
-					(response) => {
-						clearTimeout(timeout);
-						if (chrome.runtime.lastError) {
-							reject(new Error(chrome.runtime.lastError.message));
-							return;
-						}
-						resolve(response);
-					}
-				);
-			});
-
-			if (!response?.success) {
-				throw new Error('Content script initialization failed');
-			}
-
-			// 성공적인 주입 후 상태 초기화
 			pageState.injectionAttempts = 0;
 			pageState.lastInjectionTime = now;
 			BackgroundController.pageStates.set(tabId, pageState);
 
 			return true;
 		} catch (error) {
-			console.error(`Content script injection failed for tab ${tabId}:`, error);
+			throttledLog(
+				'error',
+				`Content script injection failed for tab ${tabId}:`,
+				error
+			);
 
 			pageState.injectionAttempts++;
 			if (
@@ -220,20 +241,21 @@
 			) {
 				const delay = Math.min(
 					BackgroundController.recoveryConfig.BASE_DELAY *
-						Math.pow(2, pageState.injectionAttempts),
+						Math.pow(1.5, pageState.injectionAttempts),
 					BackgroundController.recoveryConfig.MAX_DELAY
 				);
 
-				// 재시도 스케줄링
 				pageState.recoveryTimeout = setTimeout(() => {
 					pageState.recoveryTimeout = null;
-					queueContentScriptInjection(tabId).catch(console.error);
+					queueContentScriptInjection(tabId).catch((error) =>
+						throttledLog('error', 'Queued injection failed:', error)
+					);
 				}, delay);
 			} else {
 				resetTabState(tabId);
 			}
 
-			throw error;
+			return false;
 		}
 	}
 
@@ -324,6 +346,63 @@
 		BackgroundController.portStates.delete(tabId);
 	}
 
+	// 포트 연결 관리 개선
+	let ports = new Map();
+	let portReconnectTimeouts = new Map();
+
+	chrome.runtime.onConnect.addListener((port) => {
+		if (port.name === 'videoSpeedController') {
+			const tabId = port.sender?.tab?.id;
+			if (tabId) {
+				if (portReconnectTimeouts.has(tabId)) {
+					clearTimeout(portReconnectTimeouts.get(tabId));
+					portReconnectTimeouts.delete(tabId);
+				}
+
+				ports.set(tabId, port);
+
+				port.onMessage.addListener((msg) => {
+					if (msg.action === 'ping') {
+						port.postMessage({ success: true });
+					}
+				});
+
+				port.onDisconnect.addListener(() => {
+					ports.delete(tabId);
+
+					const timeout = setTimeout(() => {
+						tryReconnect(tabId);
+						portReconnectTimeouts.delete(tabId);
+					}, 1000);
+
+					portReconnectTimeouts.set(tabId, timeout);
+				});
+			}
+		}
+	});
+
+	// 탭 정리 함수 개선
+	function cleanupTab(tabId) {
+		if (portReconnectTimeouts.has(tabId)) {
+			clearTimeout(portReconnectTimeouts.get(tabId));
+			portReconnectTimeouts.delete(tabId);
+		}
+
+		if (ports.has(tabId)) {
+			try {
+				ports.get(tabId).disconnect();
+			} catch {}
+			ports.delete(tabId);
+		}
+
+		resetTabState(tabId);
+	}
+
+	// 탭 제거 핸들러 개선
+	chrome.tabs.onRemoved.addListener((tabId) => {
+		cleanupTab(tabId);
+	});
+
 	// 탭 업데이트 핸들러 개선
 	chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 		if (!tab?.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) {
@@ -332,114 +411,178 @@
 
 		if (changeInfo.status === 'complete') {
 			try {
-				const injected = await injectContentScript(tabId, tab.url);
-				if (injected) {
-					// 초기화 확인
-					await new Promise(resolve => setTimeout(resolve, 100));
-					await chrome.tabs.sendMessage(tabId, { action: 'initializeCheck' });
-				}
+				cleanupTab(tabId);
+				await chrome.scripting.executeScript({
+					target: { tabId },
+					files: ['content.js'],
+				});
 			} catch (error) {
-				console.error('Tab initialization error:', error);
+				throttledLog('error', 'Tab update handler error:', error);
 			}
 		}
 	});
 
-	// 탭 제거 핸들러
-	chrome.tabs.onRemoved.addListener((tabId) => {
-		resetTabState(tabId);
-	});
-
-	// 웹 네비게이션 이벤트 리스너
+	// 웹 네비게이션 이벤트 리스너 개선
 	if (chrome.webNavigation) {
-		chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
-			if (isYouTubeUrl(details.url)) {
-				handleYouTubeNavigation(details).catch(console.error);
-			}
-		});
+		const handleNavigation = async (details) => {
+			const { tabId, url, frameId } = details;
 
-		chrome.webNavigation.onCompleted.addListener((details) => {
-			if (isYouTubeUrl(details.url)) {
-				handleYouTubeNavigation(details).catch(console.error);
+			if (frameId !== 0) return;
+
+			try {
+				cleanupTab(tabId);
+				await new Promise(resolve => setTimeout(resolve, 500));
+				await injectContentScript(tabId, url);
+			} catch (error) {
+				throttledLog('error', 'Navigation handler error:', error);
 			}
-		});
+		};
+
+		chrome.webNavigation.onCommitted.addListener(handleNavigation);
+		chrome.webNavigation.onHistoryStateUpdated.addListener(handleNavigation);
 	}
 
 	// 메시지 핸들러
 	chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+		if (request.action === 'reloadContentScript') {
+			const tabId = sender.tab?.id;
+			if (tabId) {
+				chrome.scripting.executeScript({
+					target: { tabId },
+					files: ['content.js']
+				}).catch(error => {
+					console.error('Content script reload failed:', error);
+				});
+			}
+			sendResponse({ success: true });
+			return true;
+		}
+		
 		if (request.action === 'ping') {
 			sendResponse({ success: true });
 			return true;
 		}
 	});
 
-	// 포트 연결 관리
-	chrome.runtime.onConnect.addListener((port) => {
-		if (port.name === "videoSpeedController") {
-			const tabId = port.sender?.tab?.id;
-			if (tabId) {
-				BackgroundController.ports.set(tabId, port);
-				port.onDisconnect.addListener(() => {
-					BackgroundController.ports.delete(tabId);
-				});
+	// 컨텍스트 복구 함수
+	async function tryReconnect(tabId) {
+		try {
+			const tab = await chrome.tabs.get(tabId);
+			if (!tab || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) {
+				return;
 			}
+
+			cleanupTab(tabId);
+
+			await chrome.scripting.executeScript({
+				target: { tabId },
+				files: ['content.js']
+			});
+		} catch (error) {
+			throttledLog('error', `Failed to reconnect to tab ${tabId}:`, error);
 		}
-	});
+	}
 
 	// 확장 프로그램 설치/업데이트 핸들러 개선
 	chrome.runtime.onInstalled.addListener(async (details) => {
 		log('Extension event:', details.reason);
 
-		if (details.reason === 'install' || details.reason === 'update') {
+		if (details.reason === 'install') {
 			const defaultSettings = {
 				speedPopupShortcut: 'Ctrl + .',
 				siteSettings: {},
+				version: chrome.runtime.getManifest().version,
 			};
 
 			chrome.storage.sync.set(defaultSettings, () => {
 				log('Default settings initialized');
 			});
+		} else if (details.reason === 'update') {
+			chrome.storage.sync.get(null, (data) => {
+				const updatedData = {
+					...data,
+					version: chrome.runtime.getManifest().version,
+				};
+				chrome.storage.sync.set(updatedData, () => {
+					log(
+						'Settings preserved after update. Version updated to:',
+						chrome.runtime.getManifest().version
+					);
+				});
+			});
+		}
 
-			const tabs = await chrome.tabs.query({ url: '*://*/*' });
+		try {
+			const tabs = await chrome.tabs.query({
+				url: ['http://*/*', 'https://*/*']
+			});
+
 			for (const tab of tabs) {
-				try {
-					await chrome.scripting.executeScript({
-						target: { tabId: tab.id },
-						files: ['content.js']
-					});
-				} catch (error) {
-					console.error(`Failed to inject content script in tab ${tab.id}:`, error);
+				if (tab.id) {
+					cleanupTab(tab.id);
+					await new Promise(resolve => setTimeout(resolve, 100));
+					await injectContentScript(tab.id, tab.url);
 				}
 			}
+		} catch (error) {
+			throttledLog('error', 'Error reinjecting content scripts:', error);
 		}
 	});
 
 	// 단축키 명령어 처리 개선
 	chrome.commands.onCommand.addListener(async (command) => {
-		if (command === "toggle-speed-input") {
-			try {
-				const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-				if (!tab?.id || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) {
-					return;
-				}
+		if (command !== 'toggle-speed-input') return;
 
-				try {
-					await chrome.tabs.sendMessage(tab.id, { action: 'toggleSpeedInput' });
-				} catch (error) {
-					if (error.message.includes('Could not establish connection')) {
-						// content script 재주입 시도
-						const injected = await injectContentScript(tab.id, tab.url);
-						if (injected) {
-							// 짧은 지연 후 메시지 재전송
-							await new Promise(resolve => setTimeout(resolve, 100));
-							await chrome.tabs.sendMessage(tab.id, { action: 'toggleSpeedInput' });
-						}
-					}
-				}
-			} catch (error) {
-				console.error('단축키 처리 오류:', error);
+		try {
+			const [tab] = await chrome.tabs.query({
+				active: true,
+				currentWindow: true,
+			});
+
+			if (!tab?.id || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) {
+				return;
 			}
+
+			let retryCount = 0;
+			const maxRetries = 3;
+			const retryDelay = 100;
+
+			const sendToggleMessage = async () => {
+				try {
+					const scriptInjected = await validateContentScript(tab.id);
+					
+					if (!scriptInjected) {
+						await injectContentScript(tab.id, tab.url);
+						await new Promise(resolve => setTimeout(resolve, 100));
+					}
+
+					return await chrome.tabs.sendMessage(tab.id, {
+						action: 'toggleSpeedInput'
+					});
+				} catch (error) {
+					if (retryCount < maxRetries) {
+						retryCount++;
+						await new Promise(resolve => setTimeout(resolve, retryDelay * retryCount));
+						return sendToggleMessage();
+					}
+					throw error;
+				}
+			};
+
+			await sendToggleMessage();
+		} catch (error) {
+			throttledLog('error', '단축키 처리 오류:', error);
 		}
 	});
+
+	async function validateContentScript(tabId) {
+		try {
+			await chrome.tabs.sendMessage(tabId, { action: 'ping' });
+			return true;
+		} catch {
+			return false;
+		}
+	}
 
 	// Add context validation functions
 	async function validateExtensionContext(tabId) {

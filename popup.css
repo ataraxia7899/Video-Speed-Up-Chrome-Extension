@@ -361,6 +361,14 @@ h5::after {
 	font-size: 0.9rem;
 }
 
+.shortcut-tip {
+	border-top: 1px solid #e2e8f0;
+	margin-top: 12px;
+	padding-top: 12px;
+	color: #64748b;
+	font-size: 0.9rem;
+}
+
 /* 애니메이션 */
 @keyframes fadeIn {
 	from {
