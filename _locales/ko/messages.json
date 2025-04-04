@@ -86,5 +86,9 @@
 	"addSiteSpeed": {
 		"message": "사이트별 속도 설정 추가",
 		"description": "사이트별 속도 설정 추가 버튼 접근성 라벨"
+	},
+	"speedRangeInfo": {
+		"message": "0.1 ~ 16 배속까지 지원",
+		"description": "속도 입력 범위 정보"
 	}
 }

@@ -14,7 +14,7 @@ const utils = {
 // 핵심 유틸리티 함수들
 function updateSpeedDisplays(speed) {
 	try {
-		const speedValue = parseFloat(speed).toFixed(1);
+		const speedValue = parseFloat(speed).toFixed(2); // 소수점 두 자리까지 표시
 		const currentSpeedEl = document.getElementById('current-speed');
 		const speedInputEl = document.getElementById('speed-input');
 
@@ -275,8 +275,8 @@ function initializeButtons() {
 				e.stopPropagation();
 				const speedValue = button.dataset.speed;
 
-				// 상대적 속도 변경 버튼 처리 (+1, -1, +0.1, -0.1)
-				if (['+1', '-1', '+0.1', '-0.1'].includes(speedValue)) {
+				// 상대적 속도 변경 버튼 처리 (+1, -1, +0.25, -0.25)
+				if (['+1', '-1', '+0.25', '-0.25'].includes(speedValue)) {
 					const currentSpeed = parseFloat(
 						document.getElementById('current-speed').textContent
 					);
@@ -289,16 +289,13 @@ function initializeButtons() {
 						case '-1':
 							newSpeed = Math.max(newSpeed - 1, 0.1);
 							break;
-						case '+0.1':
-							newSpeed = Math.min(newSpeed + 0.1, 16);
+						case '+0.25':
+							newSpeed = Math.min((newSpeed + 0.25).toFixed(2), 16);
 							break;
-						case '-0.1':
-							newSpeed = Math.max(newSpeed - 0.1, 0.1);
+						case '-0.25':
+							newSpeed = Math.max((newSpeed - 0.25).toFixed(2), 0.1);
 							break;
 					}
-
-					// 소수점 첫째자리까지 반올림
-					newSpeed = Math.round(newSpeed * 10) / 10;
 
 					if (utils.isValidSpeed(newSpeed)) {
 						utils.log('Relative speed button clicked:', newSpeed);
@@ -597,12 +594,23 @@ function localizeHtmlPage() {
 	});
 }
 
-// DOM이 로드된 후 초기화 실행
+// Update the speed input label to include the range information
+function localizeSpeedInput() {
+    const speedRangeInfo = chrome.i18n.getMessage('speedRangeInfo');
+    const speedRangeInfoElement = document.querySelector('.speed-range-info');
+
+    if (speedRangeInfoElement) {
+        speedRangeInfoElement.textContent = speedRangeInfo;
+    }
+}
+
+// DOM이 로드된 후 초기화 실행 (중복 호출 제거)
 document.addEventListener('DOMContentLoaded', async () => {
-	try {
-		await initializeApp();
-		initializeSiteSettings();
-	} catch (error) {
-		console.error('Initialization error:', error);
-	}
+    try {
+        await initializeApp();
+        // initializeApp 내부에서 이미 호출되므로 중복 호출 제거
+        localizeSpeedInput();
+    } catch (error) {
+        console.error('Initialization error:', error);
+    }
 });

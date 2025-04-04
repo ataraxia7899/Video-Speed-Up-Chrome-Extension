@@ -86,5 +86,9 @@
 	"addSiteSpeed": {
 		"message": "Add site-specific speed setting",
 		"description": "Add site-specific speed setting button accessibility label"
+	},
+	"speedRangeInfo": {
+		"message": "Supports speeds from 0.1x to 16x",
+		"description": "Speed input range information"
 	}
 }

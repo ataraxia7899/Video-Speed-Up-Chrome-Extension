@@ -5,615 +5,115 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Video Speed Controller</title>
 		<link rel="stylesheet" href="popup.css" />
-		<style>
-			:root {
-				--primary-color: #6366f1;
-				--primary-hover: #4f46e5;
-				--bg-color: #f8fafc;
-				--text-color: #1e293b;
-				--border-color: #e2e8f0;
-				--card-bg: rgba(255, 255, 255, 0.8);
-				--shadow-color: rgba(0, 0, 0, 0.05);
-				--input-bg: rgba(255, 255, 255, 0.9);
-				--site-item-bg: rgba(248, 250, 252, 0.8);
-			}
-
-			* {
-				box-sizing: border-box;
-				margin: 0;
-				padding: 0;
-			}
-
-			body {
-				width: 360px;
-				min-height: 480px;
-				padding: 20px;
-				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-					'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
-				background: var(--bg-color);
-				color: var(--text-color);
-				overflow-x: hidden;
-				line-height: 1.5;
-				background-image: linear-gradient(135deg, #f0f4ff 0%, #f9f9ff 100%);
-			}
-
-			h3 {
-				font-size: 1.5rem;
-				font-weight: 700;
-				margin-bottom: 16px;
-				color: #1e293b;
-				text-align: center;
-				background: linear-gradient(90deg, #4f46e5, #6366f1);
-				background-clip: text;
-				-webkit-background-clip: text;
-				-webkit-text-fill-color: transparent;
-				letter-spacing: -0.5px;
-			}
-
-			h4 {
-				font-size: 1.1rem;
-				font-weight: 600;
-				margin-bottom: 12px;
-				color: #334155;
-			}
-
-			.card {
-				background: var(--card-bg);
-				border-radius: 16px;
-				padding: 20px;
-				margin-bottom: 20px;
-				box-shadow: 0 10px 25px var(--shadow-color);
-				backdrop-filter: blur(10px);
-				-webkit-backdrop-filter: blur(10px);
-				border: 1px solid rgba(255, 255, 255, 0.18);
-				animation: fadeIn 0.5s ease-out;
-				transition: all 0.3s ease;
-			}
-
-			.card:hover {
-				box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08);
-				transform: translateY(-2px);
-			}
-
-			.current-speed {
-				text-align: center;
-				margin: 16px 0;
-				font-weight: 600;
-				font-size: 1.2rem;
-				color: #334155;
-			}
-
-			#current-speed {
-				color: var(--primary-color);
-				font-weight: 700;
-			}
-
-			.speed-controls {
-				display: flex;
-				flex-direction: column;
-				gap: 8px;
-				/* margin-bottom: 20px; */
-			}
-
-			.speed-input {
-				display: flex;
-				align-items: center;
-				gap: 10px;
-				margin: 10px 0;
-				position: relative;
-			}
-
-			.speed-input::before {
-				content: attr(data-label);
-				position: absolute;
-				top: -20px;
-				left: 50%;
-				transform: translateX(-50%);
-				font-size: 0.9rem;
-				font-weight: 600;
-				color: #4b5563;
-			}
-
-			.speed-input input {
-				flex: 1;
-				padding: 12px 16px;
-				border-radius: 12px;
-				border: 1px solid var(--border-color);
-				background: var(--input-bg);
-				font-size: 1rem;
-				color: var(--text-color);
-				transition: all 0.2s ease;
-				text-align: center;
-				box-shadow: 0 2px 5px var(--shadow-color);
-				margin-top: 10px;
-			}
-
-			.speed-input input:focus {
-				outline: none;
-				border-color: var(--primary-color);
-				box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-			}
-
-			.preset-section {
-				background: rgba(255, 255, 255, 0.5);
-				border-radius: 12px;
-				padding: 15px;
-				/* margin-top: 15px; */
-				border: 1px solid rgba(226, 232, 240, 0.8);
-				box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
-			}
-
-			.preset-section h5 {
-				font-size: 0.9rem;
-				font-weight: 600;
-				color: #4b5563;
-				margin: 0 0 10px 0;
-				text-align: center;
-				position: relative;
-			}
-
-			.preset-section h5::after {
-				content: '';
-				position: absolute;
-				bottom: -5px;
-				left: 50%;
-				transform: translateX(-50%);
-				width: 40px;
-				height: 2px;
-				background: linear-gradient(
-					90deg,
-					rgba(99, 102, 241, 0.2),
-					rgba(99, 102, 241, 0.6)
-				);
-				border-radius: 2px;
-			}
-
-			.preset-buttons {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 8px;
-				justify-content: center;
-			}
-
-			.preset-buttons2 {
-				display: flex;
-				flex-wrap: nowrap;
-				gap: 6px;
-				justify-content: space-between;
-				/* margin-top: 10px; */
-				width: 100%;
-			}
-
-			.preset-buttons2 .speed-btn {
-				flex: 1;
-				min-width: 0;
-				padding: 8px 2px;
-				background: linear-gradient(
-					to bottom,
-					rgba(255, 255, 255, 0.15),
-					rgba(255, 255, 255, 0.05)
-				);
-				border: 1px solid rgba(255, 255, 255, 0.2);
-				color: #4b5563;
-				font-weight: 600;
-				box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05);
-				transition: all 0.2s ease;
-				font-size: 0.8rem;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				border-radius: 8px;
-			}
-
-			.preset-buttons2 .speed-btn[data-speed='-1'],
-			.preset-buttons2 .speed-btn[data-speed='-0.1'] {
-				background: linear-gradient(
-					to bottom,
-					rgba(239, 68, 68, 0.1),
-					rgba(239, 68, 68, 0.05)
-				);
-				color: #dc2626;
-				border-color: rgba(239, 68, 68, 0.2);
-			}
-
-			.preset-buttons2 .speed-btn[data-speed='+0.1'],
-			.preset-buttons2 .speed-btn[data-speed='+1'] {
-				background: linear-gradient(
-					to bottom,
-					rgba(16, 185, 129, 0.1),
-					rgba(16, 185, 129, 0.05)
-				);
-				color: #059669;
-				border-color: rgba(16, 185, 129, 0.2);
-			}
-
-			.preset-buttons2 .speed-btn:hover {
-				transform: translateY(-3px);
-				box-shadow: 0 5px 10px rgba(0, 0, 0, 0.08);
-			}
-
-			.preset-buttons2 .speed-btn[data-speed='-1']:hover,
-			.preset-buttons2 .speed-btn[data-speed='-0.1']:hover {
-				background: linear-gradient(
-					to bottom,
-					rgba(239, 68, 68, 0.15),
-					rgba(239, 68, 68, 0.1)
-				);
-			}
-
-			.preset-buttons2 .speed-btn[data-speed='+0.1']:hover,
-			.preset-buttons2 .speed-btn[data-speed='+1']:hover {
-				background: linear-gradient(
-					to bottom,
-					rgba(16, 185, 129, 0.15),
-					rgba(16, 185, 129, 0.1)
-				);
-			}
-
-			.speed-btn {
-				padding: 8px 12px;
-				border-radius: 10px;
-				border: none;
-				background: var(--input-bg);
-				color: var(--text-color);
-				font-size: 0.9rem;
-				font-weight: 500;
-				cursor: pointer;
-				transition: all 0.2s ease;
-				box-shadow: 0 2px 5px var(--shadow-color);
-				border: 1px solid var(--border-color);
-			}
-
-			.speed-btn:hover {
-				background: rgba(248, 250, 252, 0.95);
-				transform: translateY(-2px);
-				box-shadow: 0 4px 8px var(--shadow-color);
-			}
-
-			.speed-btn:active {
-				transform: translateY(0);
-			}
-
-			.speed-btn[data-speed='0.5'],
-			.speed-btn[data-speed='1.0'],
-			.speed-btn[data-speed='1.5'],
-			.speed-btn[data-speed='2.0'] {
-				background: rgba(99, 102, 241, 0.1);
-				color: var(--primary-color);
-				border-color: rgba(99, 102, 241, 0.2);
-			}
-
-			.site-row {
-				display: flex;
-				flex-direction: column;
-				gap: 10px;
-				margin-bottom: 16px;
-			}
-
-			.site-row input {
-				padding: 12px 16px;
-				border-radius: 12px;
-				border: 1px solid var(--border-color);
-				background: var(--input-bg);
-				font-size: 0.9rem;
-				color: var(--text-color);
-				transition: all 0.2s ease;
-				box-shadow: 0 2px 5px var(--shadow-color);
-			}
-
-			.site-row input:focus {
-				outline: none;
-				border-color: var(--primary-color);
-				box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-			}
-
-			.site-row button {
-				padding: 12px 16px;
-				border-radius: 12px;
-				border: none;
-				background: var(--primary-color);
-				color: white;
-				font-size: 0.9rem;
-				font-weight: 500;
-				cursor: pointer;
-				transition: all 0.2s ease;
-				box-shadow: 0 2px 5px rgba(79, 70, 229, 0.3);
-				position: relative;
-				overflow: hidden;
-			}
-
-			.site-row button:hover {
-				background: var(--primary-hover);
-				transform: translateY(-2px);
-				box-shadow: 0 4px 8px rgba(79, 70, 229, 0.4);
-			}
-
-			.site-row button:active {
-				transform: translateY(0);
-			}
-
-			.site-item {
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				margin: 8px 0;
-				padding: 12px 16px;
-				background: var(--site-item-bg);
-				border-radius: 12px;
-				border: 1px solid var(--border-color);
-				box-shadow: 0 2px 5px var(--shadow-color);
-				transition: all 0.2s ease;
-				animation: slideIn 0.3s ease-out;
-			}
-
-			.site-item:hover {
-				transform: translateY(-2px);
-				box-shadow: 0 4px 8px var(--shadow-color);
-			}
-
-			.site-item button {
-				background: rgba(239, 68, 68, 0.1);
-				color: #ef4444;
-				border: none;
-				padding: 6px 10px;
-				border-radius: 8px;
-				cursor: pointer;
-				font-size: 0.8rem;
-				transition: all 0.2s ease;
-			}
-
-			.site-item button:hover {
-				background: rgba(239, 68, 68, 0.2);
-			}
-
-			/* 리플 효과 스타일 */
-			button {
-				position: relative;
-				overflow: hidden;
-			}
-
-			.ripple-effect {
-				position: absolute;
-				border-radius: 50%;
-				background-color: rgba(255, 255, 255, 0.4);
-				width: 100px;
-				height: 100px;
-				margin-top: -50px;
-				margin-left: -50px;
-				animation: ripple 0.6s linear;
-				transform: scale(0);
-				opacity: 1;
-				pointer-events: none;
-			}
-
-			@keyframes ripple {
-				to {
-					transform: scale(2.5);
-					opacity: 0;
-				}
-			}
-
-			/* 입력 필드 포커스 효과 */
-			.input-focused {
-				transform: translateY(-2px);
-				transition: transform 0.3s ease;
-			}
-
-			/* 사이트 항목 추가/삭제 애니메이션 */
-			@keyframes addItem {
-				from {
-					opacity: 0;
-					transform: translateY(-20px);
-				}
-				to {
-					opacity: 1;
-					transform: translateY(0);
-				}
-			}
-
-			@keyframes removeItem {
-				from {
-					opacity: 1;
-					transform: translateY(0);
-				}
-				to {
-					opacity: 0;
-					transform: translateY(20px);
-				}
-			}
-
-			.site-item.adding {
-				animation: addItem 0.3s ease-out forwards;
-			}
-
-			.site-item.removing {
-				animation: removeItem 0.3s ease-out forwards;
-			}
-
-			@keyframes fadeIn {
-				from {
-					opacity: 0;
-				}
-				to {
-					opacity: 1;
-				}
-			}
-
-			@keyframes slideIn {
-				from {
-					opacity: 0;
-					transform: translateY(10px);
-				}
-				to {
-					opacity: 1;
-					transform: translateY(0);
-				}
-			}
-
-			/* 스크롤바 스타일링 */
-			::-webkit-scrollbar {
-				width: 8px;
-			}
-
-			::-webkit-scrollbar-track {
-				background: rgba(241, 245, 249, 0.8);
-				border-radius: 10px;
-			}
-
-			::-webkit-scrollbar-thumb {
-				background: rgba(203, 213, 225, 0.8);
-				border-radius: 10px;
-			}
-
-			::-webkit-scrollbar-thumb:hover {
-				background: rgba(148, 163, 184, 0.8);
-			}
-		</style>
 	</head>
 	<body>
 		<h3 data-i18n="extName">Video Speed Controller</h3>
 
-		<div class="card">
-			<div class="current-speed">
-				<span data-i18n="currentSpeed">현재 속도:</span>
-				<span id="current-speed">1.0</span>x
-			</div>
-			<div class="speed-controls">
-				<div class="speed-input" data-label="">
-					<input
-						type="number"
-						id="speed-input"
-						step="0.1"
-						min="0.1"
-						max="16"
-						value="1.0"
-						aria-label="재생 속도 입력"
-						data-i18n-aria="inputSpeedAriaLabel"
-					/>
-				</div>
+		<div class="container">
+			<div class="left-section">
+				<div class="card">
+					<div class="current-speed">
+						<span data-i18n="currentSpeed">현재 속도:</span>
+						<span id="current-speed">1.00</span>
+					</div>
+					<div class="speed-controls">
+						<div class="preset-section">
+							<h5 data-i18n="speedInput">속도 입력</h5>
+							<div class="speed-input">
+								<input
+									type="number"
+									id="speed-input"
+									step="0.1"
+									min="0.1"
+									max="16"
+									value="1.0"
+									aria-label="재생 속도 입력"
+									data-i18n-aria="inputSpeedAriaLabel"
+								/>
+								<p class="speed-range-info" data-i18n="speedRangeInfo">0.1 ~ 16 배속까지 지원</p>
+							</div>
+						</div>
 
-				<div class="preset-section">
-					<h5 data-i18n="presetSpeed">프리셋 속도</h5>
-					<div class="preset-buttons">
-						<button class="speed-btn" data-speed="0.5">0.5x</button>
-						<button class="speed-btn" data-speed="1.0">1.0x</button>
-						<button class="speed-btn" data-speed="1.5">1.5x</button>
-						<button class="speed-btn" data-speed="2.0">2.0x</button>
+						<div class="preset-section">
+							<h5 data-i18n="presetSpeed">프리셋 속도</h5>
+							<div class="preset-buttons">
+								<button class="speed-btn" data-speed="0.5">0.5x</button>
+								<button class="speed-btn" data-speed="1.0">1.0x</button>
+								<button class="speed-btn" data-speed="1.5">1.5x</button>
+								<button class="speed-btn" data-speed="2.0">2.0x</button>
+							</div>
+						</div>
+
+						<div class="preset-section">
+							<h5 data-i18n="speedAdjust">속도 조절</h5>
+							<div class="preset-buttons2">
+								<button class="speed-btn" data-speed="-1" aria-label="속도 1 감소">
+									<span>−1</span>
+								</button>
+								<button class="speed-btn" data-speed="-0.25" aria-label="속도 0.25 감소">
+									<span>−0.25</span>
+								</button>
+								<button class="speed-btn" data-speed="+0.25" aria-label="속도 0.25 증가">
+									<span>+0.25</span>
+								</button>
+								<button class="speed-btn" data-speed="+1" aria-label="속도 1 증가">
+									<span>+1</span>
+								</button>
+							</div>
+						</div>
 					</div>
 				</div>
 
-				<div class="speed-adjust-section">
-					<h5 data-i18n="speedAdjust">속도 조절</h5>
-					<div class="preset-buttons2">
-						<button class="speed-btn" data-speed="-1" aria-label="속도 1 감소">
-							<span
-								style="font-size: 14px; font-weight: bold; margin-right: 3px"
-								>−</span
-							>
-							1
-						</button>
-						<button
-							class="speed-btn"
-							data-speed="-0.1"
-							aria-label="속도 0.1 감소"
-						>
-							<span
-								style="font-size: 14px; font-weight: bold; margin-right: 3px"
-								>−</span
-							>
-							0.1
-						</button>
-						<button
-							class="speed-btn"
-							data-speed="+0.1"
-							aria-label="속도 0.1 증가"
-						>
-							<span
-								style="font-size: 14px; font-weight: bold; margin-right: 3px"
-								>+</span
-							>
-							0.1
-						</button>
-						<button class="speed-btn" data-speed="+1" aria-label="속도 1 증가">
-							<span
-								style="font-size: 14px; font-weight: bold; margin-right: 3px"
-								>+</span
-							>
-							1
-						</button>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<div class="card shortcut-section">
-			<h4 data-i18n="siteSettings">사이트별 자동 설정</h4>
-			<div class="site-row">
-				<input
-					type="text"
-					id="site-url"
-					data-i18n-placeholder="urlPatternExample"
-					aria-label="URL 패턴 입력"
-					data-i18n-aria="inputUrlAriaLabel"
-				/>
-				<input
-					type="number"
-					id="site-speed"
-					step="0.1"
-					min="0.1"
-					max="16"
-					value="1.0"
-					placeholder="재생 속도"
-					aria-label="사이트별 재생 속도 입력"
-					data-i18n-placeholder="speedPlaceholder"
-					data-i18n-aria="inputSpeedAriaLabel"
-				/>
-				<button
-					id="add-site"
-					data-i18n="addButton"
-					data-i18n-aria="addSiteSpeed"
-				>
-					추가
-				</button>
-			</div>
-			<div id="site-list">
-				<!-- 저장된 사이트 목록이 여기에 표시됩니다 -->
-			</div>
-			<!-- 사이트 아이템 템플릿 업데이트 -->
-			<template id="site-item-template">
-				<div class="site-info">
-					<label class="toggle-switch">
+				<div class="card shortcut-section">
+					<h4 data-i18n="siteSettings">사이트별 자동 설정</h4>
+					<div class="site-row">
 						<input
-							type="checkbox"
-							class="toggle-input"
-							data-i18n-aria="toggleSiteSpeed"
+							type="text"
+							id="site-url"
+							data-i18n-placeholder="urlPatternExample"
+							aria-label="URL 패턴 입력"
+							data-i18n-aria="inputUrlAriaLabel"
 						/>
-						<span class="toggle-label"></span>
-					</label>
-					<span class="site-pattern"></span>
+						<input
+							type="number"
+							id="site-speed"
+							step="0.1"
+							min="0.1"
+							max="16"
+							value="1.0"
+							placeholder="재생 속도"
+							aria-label="사이트별 재생 속도 입력"
+							data-i18n-placeholder="speedPlaceholder"
+							data-i18n-aria="inputSpeedAriaLabel"
+						/>
+						<button
+							id="add-site"
+							data-i18n="addButton"
+							data-i18n-aria="addSiteSpeed"
+						>
+							추가
+						</button>
+					</div>
+					<div id="site-list">
+						<!-- 저장된 사이트 목록이 여기에 표시됩니다 -->
+					</div>
 				</div>
-				<button
-					class="delete-site"
-					data-i18n="delete"
-					data-i18n-aria="deleteSite"
-				>
-					삭제
-				</button>
-			</template>
-		</div>
+			</div>
 
-		<div class="card info-section">
-			<h4 data-i18n="shortcutGuide">단축키 안내</h4>
-			<ul class="shortcut-list">
-				<li>
-					<strong>Ctrl + .</strong> -
-					<span data-i18n="openSpeedPopup">속도 조절 팝업 열기</span>
-				</li>
-				<!-- <li><strong>Ctrl + Shift + ↑</strong> - 속도 증가 (0.25x)</li>
-				<li><strong>Ctrl + Shift + ↓</strong> - 속도 감소 (0.25x)</li> -->
-			</ul>
-			<div class="version-info">
-				<span>version: 1.0.3</span>
+			<div class="right-section">
+				<div class="card info-section">
+					<h4 data-i18n="shortcutGuide">단축키 안내</h4>
+					<ul class="shortcut-list">
+						<li>
+							<strong>Ctrl + .</strong>
+							<span class="shortcut-description" data-i18n="openSpeedPopup">속도 조절 팝업 열기</span>
+						</li>
+					</ul>
+				</div>
+				
+				<div class="version-info">
+					<span>version: 1.0.3</span>
+				</div>
 			</div>
 		</div>
 

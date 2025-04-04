@@ -1054,15 +1054,23 @@
 	setInterval(handleUrlChange, state.urlCheckInterval);
 
 	// Chrome storage 변경 감지 개선
-	chrome.storage.onChanged.addListener(async (changes, namespace) => {
-		if (namespace === 'sync' && changes.siteSettings) {
-			// 현재 진행 중인 초기화가 있다면 완료될 때까지 대기
-			if (state.initializationQueue) {
-				await state.initializationQueue;
+	if (chrome.storage && chrome.storage.onChanged) {
+		chrome.storage.onChanged.addListener(async (changes, namespace) => {
+			try {
+				if (namespace === 'sync' && changes.siteSettings) {
+					// 현재 진행 중인 초기화가 있다면 완료될 때까지 대기
+					if (state.initializationQueue) {
+						await state.initializationQueue;
+					}
+					await applySiteSettings();
+				}
+			} catch (error) {
+				console.error('Error handling storage change:', error);
 			}
-			await applySiteSettings();
-		}
-	});
+		});
+	} else {
+		console.warn('chrome.storage.onChanged is not available. Skipping listener setup.');
+	}
 
 	// 실행
 	initWithRetry().catch(console.error);
