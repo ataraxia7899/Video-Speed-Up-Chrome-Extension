@@ -26,6 +26,12 @@ body {
 	color: var(--text-color);
 	overflow-x: hidden;
 	line-height: 1.5;
+	transition: all 0.3s ease;
+}
+
+body.dark-mode {
+	background: #1a1a1a;
+	color: #ffffff;
 }
 
 h3 {
@@ -109,6 +115,14 @@ h5::after {
 	position: relative;
 	width: 100%;
 	margin-bottom: 8px;
+	padding: 12px;
+	border: 2px solid #e2e8f0;
+	border-radius: 8px;
+	font-size: 16px;
+	outline: none;
+	transition: all 0.2s ease;
+	background: #ffffff;
+	color: #1a1a1a;
 }
 
 .speed-input input {
@@ -138,6 +152,20 @@ h5::after {
 	border-color: var(--primary-color);
 	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 	transform: translateY(-1px);
+}
+
+.dark-mode .speed-input {
+	background: #2d2d2d;
+	border-color: #404040;
+	color: #ffffff;
+}
+
+.speed-input:focus {
+	border-color: #3b82f6;
+}
+
+.dark-mode .speed-input:focus {
+	border-color: #60a5fa;
 }
 
 .speed-range-info {
@@ -179,34 +207,44 @@ h5::after {
 }
 
 .preset-buttons {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	justify-content: center;
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 8px;
+	margin-bottom: 16px;
 }
 
-.preset-buttons .speed-btn {
-	padding: 8px 12px;
+.preset-btn {
+	padding: 12px;
+	background: #f1f5f9;
+	border: none;
 	border-radius: 8px;
-	background: linear-gradient(to bottom, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.05));
-	color: var(--primary-color);
-	font-size: 0.9rem;
-	font-weight: 600;
+	font-size: 16px;
+	font-weight: 500;
+	color: #475569;
 	cursor: pointer;
 	transition: all 0.2s ease;
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-	border: 1px solid rgba(99, 102, 241, 0.2);
 }
 
-.preset-buttons .speed-btn:hover {
-	transform: translateY(-1px);
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-	background: linear-gradient(to bottom, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.1));
+.dark-mode .preset-btn {
+	background: #2d2d2d;
+	color: #e2e8f0;
 }
 
-.preset-buttons .speed-btn:active {
-	transform: translateY(0);
-	background: linear-gradient(to bottom, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.15));
+.preset-btn:hover {
+	background: #e2e8f0;
+}
+
+.dark-mode .preset-btn:hover {
+	background: #404040;
+}
+
+.preset-btn.active {
+	background: #3b82f6;
+	color: white;
+}
+
+.dark-mode .preset-btn.active {
+	background: #60a5fa;
 }
 
 .preset-buttons2 {
@@ -291,23 +329,47 @@ h5::after {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding: 12px 16px;
-	background: var(--site-item-bg);
-	border-radius: 12px;
-	margin: 8px 0;
-	border: 1px solid var(--border-color);
-	transition: all 0.3s ease;
+	padding: 8px;
+	margin-bottom: 8px;
+	background: #f8fafc;
+	border-radius: 6px;
+}
+
+.dark-mode .site-item {
+	background: #2d2d2d;
 }
 
 .site-info {
 	display: flex;
 	align-items: center;
 	gap: 12px;
+	flex-grow: 1;
+	margin-right: 12px;
 }
 
 .site-pattern {
-	font-size: 0.7rem;
-	color: var(--text-color);
+	font-size: 14px;
+	color: #475569;
+	margin-bottom: 2px;
+}
+
+.dark-mode .site-pattern {
+	color: #94a3b8;
+}
+
+.site-speed {
+	font-size: 12px;
+	color: #64748b;
+}
+
+.dark-mode .site-speed {
+	color: #cbd5e1;
+}
+
+.site-controls {
+	display: flex;
+	gap: 8px;
+	align-items: center;
 }
 
 .delete-site {
@@ -329,6 +391,27 @@ h5::after {
 
 .delete-site:active {
 	transform: translateY(0);
+}
+
+.delete-btn {
+	padding: 4px;
+	background: none;
+	border: none;
+	color: #ef4444;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 4px;
+	transition: all 0.2s ease;
+}
+
+.delete-btn:hover {
+	background: rgba(239, 68, 68, 0.1);
+}
+
+.dark-mode .delete-btn:hover {
+	background: rgba(239, 68, 68, 0.2);
 }
 
 /* 단축키 스타일 */
@@ -413,12 +496,20 @@ h5::after {
 	background: rgba(99, 102, 241, 0.5);
 }
 
+.dark-mode ::-webkit-scrollbar-thumb {
+	background: #4b5563;
+}
+
+.dark-mode ::-webkit-scrollbar-thumb:hover {
+	background: #64748b;
+}
+
 /* 토글 스위치 */
 .toggle-switch {
 	position: relative;
 	display: inline-block;
-	width: 44px;
-	height: 24px;
+	width: 36px;
+	height: 20px;
 }
 
 .toggle-input {
@@ -436,16 +527,20 @@ h5::after {
 	bottom: 0;
 	background-color: #cbd5e1;
 	transition: 0.4s;
-	border-radius: 24px;
+	border-radius: 20px;
+}
+
+.dark-mode .toggle-label {
+	background-color: #4b5563;
 }
 
 .toggle-label:before {
 	position: absolute;
 	content: '';
-	height: 18px;
-	width: 18px;
-	left: 3px;
-	bottom: 3px;
+	height: 16px;
+	width: 16px;
+	left: 2px;
+	bottom: 2px;
 	background-color: white;
 	transition: 0.4s;
 	border-radius: 50%;
@@ -456,8 +551,38 @@ h5::after {
 	background-color: var(--primary-color);
 }
 
+.dark-mode .toggle-input:checked + .toggle-label {
+	background-color: #60a5fa;
+}
+
 .toggle-input:checked + .toggle-label:before {
-	transform: translateX(20px);
+	transform: translateX(16px);
+}
+
+/* 모드 토글 버튼 */
+.dark-mode-toggle {
+	background: none;
+	border: none;
+	padding: 8px;
+	cursor: pointer;
+	color: #64748b;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 6px;
+	transition: all 0.2s ease;
+}
+
+.dark-mode-toggle:hover {
+	background: rgba(0, 0, 0, 0.05);
+}
+
+.dark-mode .dark-mode-toggle {
+	color: #94a3b8;
+}
+
+.dark-mode .dark-mode-toggle:hover {
+	background: rgba(255, 255, 255, 0.1);
 }
 
 .version-info {
@@ -471,4 +596,85 @@ h5::after {
 	border-radius: 6px;
 	background: rgba(255, 255, 255, 0.5);
 	z-index: 1000;
+}
+
+/* 다크모드 스타일 */
+body.dark-mode {
+	background-color: #1a1d21;
+	color: #e4e6eb;
+}
+
+.dark-mode .card {
+	background-color: #2c2f33;
+	border-color: #40444b;
+}
+
+.dark-mode h3,
+.dark-mode h4,
+.dark-mode h5 {
+	color: #e4e6eb;
+}
+
+.dark-mode .preset-section {
+	border-color: rgba(255, 255, 255, 0.1);
+	background-color: #2c2f33;
+}
+
+.dark-mode .speed-btn {
+	background-color: #40444b;
+	color: #e4e6eb;
+	border-color: #40444b;
+}
+
+.dark-mode .speed-btn:hover {
+	background-color: #4a4d52;
+}
+
+.dark-mode input[type="number"],
+.dark-mode input[type="text"] {
+	background-color: #40444b;
+	border-color: #40444b;
+	color: #e4e6eb;
+}
+
+.dark-mode input[type="number"]:focus,
+.dark-mode input[type="text"]:focus {
+	border-color: #5865f2;
+	background-color: #2c2f33;
+}
+
+.dark-mode .info-section {
+	background-color: #2c2f33;
+}
+
+.dark-mode .shortcut-description {
+	color: #b9bbbe;
+}
+
+.dark-mode .version-info {
+	color: #72767d;
+}
+
+/* 다크모드 토글 버튼 스타일 */
+.dark-mode-toggle {
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 8px;
+	border-radius: 50%;
+	transition: background-color 0.2s;
+	margin-left: 8px;
+}
+
+.dark-mode-toggle:hover {
+	background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .dark-mode-toggle:hover {
+	background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* 다크모드에서의 그라데이션 색상 조정 */
+.dark-mode .preset-section h5::after {
+	background: linear-gradient(90deg, #5865f2, #7289da);
 }
