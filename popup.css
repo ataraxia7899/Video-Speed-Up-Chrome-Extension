@@ -123,6 +123,7 @@ h5::after {
 	text-align: center;  /* 텍스트 중앙 정렬 */
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 	-moz-appearance: textfield;  /* Firefox에서 화살표 제거 */
+	appearance: textfield;       /* 표준 속성 추가 */
 }
 
 /* Chrome, Safari, Edge에서 화살표 제거 */
