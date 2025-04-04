@@ -41,6 +41,14 @@
 		recoveryTimeouts: new Map(),
 		injectionQueue: new Map(),
 		injectionLocks: new Map(),
+		contextValidationConfig: {
+			VALIDATION_INTERVAL: 1000,
+			MAX_RETRIES: 3,
+			RETRY_DELAY: 500,
+			CONNECTION_TIMEOUT: 2000,
+		},
+		ports: new Map(),
+		portStates: new Map(),
 	};
 
 	function log(...args) {
@@ -306,6 +314,8 @@
 		BackgroundController.urlTracker.delete(tabId);
 		BackgroundController.activeTabsRegistry.delete(tabId);
 		BackgroundController.navigationStates.delete(tabId);
+		BackgroundController.ports.delete(tabId);
+		BackgroundController.portStates.delete(tabId);
 	}
 
 	// 탭 업데이트 핸들러 개선
@@ -422,4 +432,56 @@
 			});
 		}
 	});
+
+	// Add context validation functions
+	async function validateExtensionContext(tabId) {
+		try {
+			const port = BackgroundController.ports.get(tabId);
+			if (!port) {
+				return false;
+			}
+
+			const response = await sendMessageWithTimeout(
+				tabId,
+				{ action: 'ping' },
+				BackgroundController.contextValidationConfig.CONNECTION_TIMEOUT
+			);
+
+			return response?.success === true;
+		} catch {
+			return false;
+		}
+	}
+
+	// Add port connection tracking
+	chrome.runtime.onConnect.addListener((port) => {
+		const tabId = port.sender?.tab?.id;
+		if (!tabId) return;
+
+		BackgroundController.ports.set(tabId, port);
+		BackgroundController.portStates.set(tabId, { isValid: true });
+
+		port.onDisconnect.addListener(() => {
+			BackgroundController.ports.delete(tabId);
+			BackgroundController.portStates.set(tabId, { isValid: false });
+		});
+	});
+
+	// Add timeout wrapper for messages
+	async function sendMessageWithTimeout(tabId, message, timeout) {
+		return Promise.race([
+			new Promise((resolve, reject) => {
+				chrome.tabs.sendMessage(tabId, message, (response) => {
+					if (chrome.runtime.lastError) {
+						reject(chrome.runtime.lastError);
+					} else {
+						resolve(response);
+					}
+				});
+			}),
+			new Promise((_, reject) =>
+				setTimeout(() => reject(new Error('Message timeout')), timeout)
+			),
+		]);
+	}
 })();

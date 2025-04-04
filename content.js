@@ -73,6 +73,84 @@
 		},
 	};
 
+	// Add context validation state
+	const contextState = {
+		isValid: true,
+		port: null,
+		recoveryAttempts: 0,
+		MAX_RECOVERY_ATTEMPTS: 3,
+		RECOVERY_DELAY: 1000,
+	};
+
+	// Setup port connection
+	function setupPortConnection() {
+		try {
+			contextState.port = chrome.runtime.connect({ name: "videoSpeedController" });
+
+			contextState.port.onDisconnect.addListener(() => {
+				contextState.isValid = false;
+				attemptContextRecovery();
+			});
+
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	// Add context recovery
+	async function attemptContextRecovery() {
+		if (contextState.recoveryAttempts >= contextState.MAX_RECOVERY_ATTEMPTS) {
+			console.warn('Max recovery attempts reached');
+			return false;
+		}
+
+		try {
+			if (!chrome.runtime?.id) {
+				throw new Error('Extension context invalid');
+			}
+
+			const success = setupPortConnection();
+			if (success) {
+				contextState.isValid = true;
+				contextState.recoveryAttempts = 0;
+				await reinitialize();
+				return true;
+			}
+		} catch {
+			contextState.recoveryAttempts++;
+			await new Promise(resolve =>
+				setTimeout(resolve, contextState.RECOVERY_DELAY)
+			);
+			return attemptContextRecovery();
+		}
+
+		return false;
+	}
+
+	// Add safe message sending
+	async function sendMessageSafely(message) {
+		if (!contextState.isValid) {
+			const recovered = await attemptContextRecovery();
+			if (!recovered) {
+				throw new Error('Extension context invalid');
+			}
+		}
+
+		return new Promise((resolve, reject) => {
+			chrome.runtime.sendMessage(message, response => {
+				if (chrome.runtime.lastError) {
+					reject(chrome.runtime.lastError);
+				} else {
+					resolve(response);
+				}
+			});
+		});
+	}
+
+	// Initialize context validation
+	setupPortConnection();
+
 	// 초기화 전략 개선
 	async function initWithRetry(maxAttempts = 3) {
 		let attempt = 0;
