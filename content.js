@@ -5,58 +5,623 @@
     currentSpeed: 1.0,
     initialized: false,
     cleanup: new Set(),
-    initializedVideos: new Set()
+    initializedVideos: new Set(),
+    lastUrl: window.location.href,
+    pendingSpeedUpdate: null,
+    videoObserver: null,
+    documentObserver: null,
+    autoSpeedApplied: false,
+    retryAttempts: 0,
+    maxRetries: 5,
+    retryDelay: 1000,
+    initializationQueue: Promise.resolve(),
+    youtubeConfig: {
+      RETRY_INTERVAL: 50,  // 100ms에서 50ms로 감소
+      MAX_RETRIES: 20,     // 재시도 횟수 감소
+      MUTATION_DEBOUNCE: 50, // 100ms에서 50ms로 감소
+      isYouTube: window.location.hostname.includes('youtube.com'),
+      lastSpeedUpdate: 0,
+      updateDelay: 100,    // 250ms에서 100ms로 감소
+      retryCount: 0,
+      isShortsPage: false,
+      shortsObserver: null,
+      lastShortsVideoId: null
+    },
+    connectionConfig: {
+      reconnectAttempts: 0,
+      maxReconnectAttempts: 10,
+      reconnectDelay: 1000,
+      maxReconnectDelay: 10000,
+      connectionTimeout: 5000,
+      lastReconnectTime: 0,
+      minReconnectInterval: 500,
+    },
+    portConnection: null
   };
 
-  // 컨텍스트 유효성 검사 함수
-  function isContextValid() {
+  // 빠른 초기화를 위한 즉시 실행 함수
+  const quickInit = () => {
+    const videos = document.getElementsByTagName('video');
+    if (videos.length > 0) {
+      chrome.storage.sync.get(['siteSettings'], (result) => {
+        if (chrome.runtime.lastError) return;
+        
+        const siteSettings = result.siteSettings || {};
+        const currentUrl = window.location.href;
+        
+        for (const [pattern, setting] of Object.entries(siteSettings)) {
+          const speed = typeof setting === 'object' ? setting.speed : setting;
+          const enabled = typeof setting === 'object' ? setting.enabled : true;
+          
+          if (enabled && matchUrlPattern(pattern, currentUrl)) {
+            for (const video of videos) {
+              video.playbackRate = speed;
+            }
+            state.currentSpeed = speed;
+            state.autoSpeedApplied = true;
+            break;
+          }
+        }
+      });
+    }
+  };
+
+  // URL 패턴 매칭 최적화
+  function matchUrlPattern(pattern, url) {
     try {
-      return !!chrome.runtime?.id;
+      const regexPattern = pattern
+        .replace(/\./g, '\\.')
+        .replace(/\*/g, '.*')
+        .replace(/\//g, '\\/');
+      return new RegExp(regexPattern).test(url);
     } catch {
       return false;
     }
   }
 
-  // 복구 시도 함수
-  async function attemptRecovery(maxAttempts = 3) {
-    for (let i = 0; i < maxAttempts; i++) {
+  // 비디오 요소 초기화 큐 관리
+  function queueInitialization(fn) {
+    state.initializationQueue = state.initializationQueue.then(fn).catch(error => {
+      console.error('Initialization error:', error);
+    });
+    return state.initializationQueue;
+  }
+
+  // 포트 연결 관리 함수
+  async function establishConnection() {
+    if (state.portConnection) {
       try {
-        if (!state.contextValid) {
-          const success = await validateContext();
-          if (success) {
-            state.contextValid = true;
-            return true;
-          }
-        }
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+        state.portConnection.disconnect();
       } catch (error) {
-        console.error('Recovery attempt failed:', error);
+        console.error('Error disconnecting port:', error);
       }
     }
+
+    try {
+      state.portConnection = chrome.runtime.connect({ name: "videoSpeedController" });
+      
+      state.portConnection.onDisconnect.addListener(async () => {
+        if (chrome.runtime.lastError) {
+          console.error('Port disconnected:', chrome.runtime.lastError);
+        }
+        state.contextValid = false;
+        state.portConnection = null;
+        await handleDisconnect();
+      });
+
+      // 연결 확인을 위한 ping 전송
+      state.portConnection.postMessage({ action: 'ping' });
+      state.contextValid = true;
+      state.connectionConfig.reconnectAttempts = 0;
+      return true;
+    } catch (error) {
+      console.error('Connection establishment failed:', error);
+      return false;
+    }
+  }
+
+  // 연결 해제 처리 함수
+  async function handleDisconnect() {
+    const config = state.connectionConfig;
+    const now = Date.now();
+
+    // 재연결 시도 간격 제한
+    if (now - config.lastReconnectTime < config.minReconnectInterval) {
+      return;
+    }
+
+    if (config.reconnectAttempts >= config.maxReconnectAttempts) {
+      console.error('Max reconnection attempts reached');
+      return;
+    }
+
+    config.reconnectAttempts++;
+    config.lastReconnectTime = now;
+
+    // 지수 백오프를 사용한 재시도 간격 계산
+    const delay = Math.min(
+      config.reconnectDelay * Math.pow(2, config.reconnectAttempts - 1),
+      config.maxReconnectDelay
+    );
+
+    await new Promise(resolve => setTimeout(resolve, delay));
+    
+    try {
+      const success = await establishConnection();
+      if (success) {
+        await applySiteSettings(true);
+      }
+    } catch (error) {
+      console.error('Reconnection attempt failed:', error);
+    }
+  }
+
+  // 컨텍스트 검증 함수 개선
+  async function validateContext() {
+    try {
+      // 포트 연결 확인
+      if (!state.portConnection) {
+        await establishConnection();
+      }
+
+      // Ping 메시지로 컨텍스트 유효성 확인
+      const response = await sendMessageWithTimeout(
+        { action: 'ping' },
+        state.connectionConfig.connectionTimeout
+      );
+
+      return response?.success === true;
+    } catch (error) {
+      console.error('Context validation failed:', error);
+      return false;
+    }
+  }
+
+  // 메시지 전송 타임아웃 래퍼
+  async function sendMessageWithTimeout(message, timeout) {
+    return Promise.race([
+      new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(message, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(response);
+          }
+        });
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Message timeout')), timeout)
+      ),
+    ]);
+  }
+
+  // 컨텍스트 복구 함수 개선
+  async function attemptRecovery(force = false) {
+    const config = state.connectionConfig;
+    
+    if (!force && config.reconnectAttempts >= config.maxReconnectAttempts) {
+      return false;
+    }
+
+    try {
+      // 컨텍스트 재설정 시도
+      const connected = await establishConnection();
+      if (!connected) {
+        throw new Error('Failed to establish connection');
+      }
+
+      // 컨텍스트 유효성 검증
+      const valid = await validateContext();
+      if (valid) {
+        state.contextValid = true;
+        config.reconnectAttempts = 0;
+        return true;
+      }
+
+      throw new Error('Context validation failed');
+    } catch (error) {
+      console.error('Recovery attempt failed:', error);
+      return handleDisconnect();
+    }
+  }
+
+  // YouTube Shorts 페이지 감지
+  function detectYouTubeShortsPage() {
+    const url = window.location.href;
+    return url.includes('/shorts/');
+  }
+
+  // 사이트별 설정 적용 함수 개선
+  async function applySiteSettings(force = false) {
+    if (!state.contextValid && !force) {
+      state.contextValid = await attemptRecovery();
+      if (!state.contextValid) return false;
+    }
+
+    try {
+      const result = await chrome.storage.sync.get(['siteSettings']);
+      const siteSettings = result.siteSettings || {};
+      const currentUrl = window.location.href;
+      
+      // URL이 변경되지 않았고 이미 적용되었다면 스킵
+      if (!force && currentUrl === state.lastUrl && state.autoSpeedApplied) {
+        return true;
+      }
+
+      state.lastUrl = currentUrl;
+      let settingApplied = false;
+
+      for (const [pattern, setting] of Object.entries(siteSettings)) {
+        const speed = typeof setting === 'object' ? setting.speed : setting;
+        const enabled = typeof setting === 'object' ? setting.enabled : true;
+        
+        if (enabled && matchUrlPattern(pattern, currentUrl)) {
+          state.currentSpeed = speed;
+          state.pendingSpeedUpdate = speed;
+
+          // YouTube Shorts인 경우 특별 처리
+          if (pattern.includes('youtube.com/shorts')) {
+            return await handleYouTubeShortsVideo(speed);
+          }
+
+          // 일반 비디오 처리
+          const videos = document.getElementsByTagName('video');
+          const applications = await Promise.all(
+            Array.from(videos).map(video => applySpeedToVideo(video, speed))
+          );
+
+          settingApplied = applications.some(success => success);
+          
+          if (!settingApplied) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const retryApplications = await Promise.all(
+              Array.from(videos).map(video => applySpeedToVideo(video, speed))
+            );
+            settingApplied = retryApplications.some(success => success);
+          }
+
+          break;
+        }
+      }
+
+      state.autoSpeedApplied = settingApplied;
+      return settingApplied;
+    } catch (error) {
+      console.error('Error applying site settings:', error);
+      return false;
+    }
+  }
+
+  // YouTube Shorts 전용 비디오 처리 함수 개선
+  async function handleYouTubeShortsVideo(speed) {
+    if (!state.youtubeConfig.isYouTube || !detectYouTubeShortsPage()) return false;
+
+    const findAndSetSpeed = async () => {
+      // Shorts 컨테이너 찾기
+      const shortsContainers = document.querySelectorAll([
+        'ytd-reel-video-renderer[is-active]',
+        '#shorts-container ytd-shorts-player-renderer',
+        '[page-type="SHORTS"] ytd-shorts[is-active]'
+      ].join(','));
+
+      let currentShortsVideo = null;
+
+      // 현재 보이는 Shorts 비디오 찾기
+      for (const container of shortsContainers) {
+        const video = container.querySelector('video');
+        if (video && isElementInViewport(container)) {
+          currentShortsVideo = video;
+          break;
+        }
+      }
+
+      if (!currentShortsVideo) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const retryVideo = document.querySelector('ytd-reel-video-renderer[is-active] video');
+        if (!retryVideo) return false;
+        currentShortsVideo = retryVideo;
+      }
+
+      try {
+        // 비디오 준비 대기
+        if (currentShortsVideo.readyState < 3) {
+          await new Promise(resolve => {
+            const readyCheck = () => {
+              if (currentShortsVideo.readyState >= 3) {
+                resolve();
+              } else {
+                setTimeout(readyCheck, 100);
+              }
+            };
+            readyCheck();
+            // 5초 타임아웃
+            setTimeout(resolve, 5000);
+          });
+        }
+
+        // 속도 설정
+        currentShortsVideo.playbackRate = speed;
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // 속도 설정 확인 및 재시도
+        if (currentShortsVideo.playbackRate !== speed) {
+          currentShortsVideo.playbackRate = speed;
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        return currentShortsVideo.playbackRate === speed;
+      } catch (error) {
+        console.error('YouTube Shorts speed setting error:', error);
+        return false;
+      }
+    };
+
+    // 속도 설정 시도
+    let retryCount = 0;
+    const maxRetries = 5;
+    
+    while (retryCount < maxRetries) {
+      const success = await findAndSetSpeed();
+      if (success) {
+        return true;
+      }
+      await new Promise(resolve => setTimeout(resolve, 200 * Math.pow(2, retryCount)));
+      retryCount++;
+    }
+
     return false;
   }
 
-  // 컨텍스트 검증
-  async function validateContext() {
+  // Shorts 비디오 변경 감지 강화
+  function observeShortsNavigation() {
+    if (!state.youtubeConfig.isYouTube) return;
+
+    const shortsObserver = new MutationObserver(async (mutations) => {
+      const isRelevantChange = mutations.some(mutation => {
+        const target = mutation.target;
+        return (
+          target.matches?.('ytd-reel-video-renderer[is-active]') ||
+          target.getAttribute?.('page-type') === 'SHORTS' ||
+          target.matches?.('[page-type="SHORTS"]') ||
+          target.id === 'progress' ||
+          mutation.addedNodes.length > 0
+        );
+      });
+
+      if (isRelevantChange) {
+        state.autoSpeedApplied = false;
+        await applySiteSettings(true);
+      }
+    });
+
+    shortsObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['is-active', 'page-type', 'aria-hidden']
+    });
+
+    state.cleanup.add(() => shortsObserver.disconnect());
+  }
+
+  // 요소가 뷰포트 내에 있는지 확인하는 함수
+  function isElementInViewport(element) {
+    const rect = element.getBoundingClientRect();
+    return (
+      rect.top >= 0 &&
+      rect.left >= 0 &&
+      rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+      rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+  }
+
+  // YouTube 전용 비디오 처리 함수
+  async function handleYouTubeVideo(speed) {
+    if (!state.youtubeConfig.isYouTube) return false;
+
+    let retryCount = 0;
+    const maxRetries = state.youtubeConfig.MAX_RETRIES;
+    const interval = state.youtubeConfig.RETRY_INTERVAL;
+
+    const findAndSetSpeed = async () => {
+      const video = document.querySelector('video');
+      if (!video) return false;
+
+      try {
+        // 비디오가 로드될 때까지 대기
+        if (video.readyState < 3) {
+          await new Promise(resolve => {
+            video.addEventListener('canplay', resolve, { once: true });
+            setTimeout(resolve, 1000); // 1초 타임아웃
+          });
+        }
+
+        // 속도 설정 및 확인
+        video.playbackRate = speed;
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        if (video.playbackRate !== speed) {
+          video.playbackRate = speed;
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        // YouTube 플레이어 API를 통한 추가 설정 시도
+        if (window.yt?.player?.getPlayerByElement) {
+          const player = window.yt.player.getPlayerByElement(video);
+          if (player?.setPlaybackRate) {
+            player.setPlaybackRate(speed);
+          }
+        }
+
+        return video.playbackRate === speed;
+      } catch (error) {
+        console.error('YouTube speed setting error:', error);
+        return false;
+      }
+    };
+
+    // 속도 설정 재시도 로직
+    while (retryCount < maxRetries) {
+      const success = await findAndSetSpeed();
+      if (success) {
+        state.youtubeConfig.retryCount = 0;
+        return true;
+      }
+      await new Promise(resolve => setTimeout(resolve, interval));
+      retryCount++;
+    }
+
+    return false;
+  }
+
+  // YouTube Shorts 네비게이션 감지
+  function observeYouTubeShortsNavigation() {
+    if (!state.youtubeConfig.isYouTube) return;
+
+    // Shorts 페이지 변경 감지
+    const handleShortsNavigation = async () => {
+      const isShortsPage = detectYouTubeShortsPage();
+      if (isShortsPage !== state.youtubeConfig.isShortsPage) {
+        state.youtubeConfig.isShortsPage = isShortsPage;
+        if (isShortsPage) {
+          state.autoSpeedApplied = false;
+          await applySiteSettings(true);
+        }
+      }
+    };
+
+    // URL 변경 감지
+    const observer = new MutationObserver(async (mutations) => {
+      const urlChanged = mutations.some(mutation => 
+        mutation.target.nodeName === 'TITLE' ||
+        mutation.target.id === 'page-manager' ||
+        (mutation.target.tagName === 'VIDEO' && detectYouTubeShortsPage())
+      );
+
+      if (urlChanged) {
+        await handleShortsNavigation();
+      }
+    });
+
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['src', 'data-url']
+    });
+
+    // Shorts 특화 이벤트 리스너
+    window.addEventListener('yt-navigate-start', handleShortsNavigation);
+    window.addEventListener('yt-navigate-finish', handleShortsNavigation);
+  }
+
+  // YouTube URL 변경 감지 함수
+  function detectYouTubeNavigation() {
+    if (!state.youtubeConfig.isYouTube) return;
+
+    // YouTube의 동적 네비게이션 감지
+    const observer = new MutationObserver(async (mutations) => {
+      const titleChanged = mutations.some(mutation => 
+        mutation.target.nodeName === 'TITLE' ||
+        mutation.target.id === 'content' ||
+        mutation.target.id === 'page-manager'
+      );
+
+      if (titleChanged) {
+        state.autoSpeedApplied = false;
+        await applySiteSettings(true);
+      }
+    });
+
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-url']
+    });
+
+    // YouTube 특화 history 변경 감지
+    const handleYouTubeNavigation = async () => {
+      state.autoSpeedApplied = false;
+      await new Promise(resolve => setTimeout(resolve, 500)); // 페이지 로드 대기
+      await applySiteSettings(true);
+    };
+
+    window.addEventListener('yt-navigate-start', handleYouTubeNavigation);
+    window.addEventListener('yt-navigate-finish', handleYouTubeNavigation);
+  }
+
+  // 비디오 요소에 속도 적용 함수 강화
+  async function applySpeedToVideo(video, speed) {
+    if (!video || !speed) return false;
+
     try {
-      const response = await chrome.runtime.sendMessage({ action: 'ping' });
-      return response?.success === true;
-    } catch {
+      // YouTube Shorts인 경우 전용 처리
+      if (state.youtubeConfig.isYouTube && detectYouTubeShortsPage()) {
+        const now = Date.now();
+        if (now - state.youtubeConfig.lastSpeedUpdate < state.youtubeConfig.updateDelay) {
+          return false;
+        }
+        state.youtubeConfig.lastSpeedUpdate = now;
+        return await handleYouTubeShortsVideo(speed);
+      }
+
+      // YouTube인 경우 전용 처리
+      if (state.youtubeConfig.isYouTube) {
+        const now = Date.now();
+        if (now - state.youtubeConfig.lastSpeedUpdate < state.youtubeConfig.updateDelay) {
+          return false;
+        }
+        state.youtubeConfig.lastSpeedUpdate = now;
+        return await handleYouTubeVideo(speed);
+      }
+
+      // 이미 올바른 속도가 설정되어 있다면 스킵
+      if (video.playbackRate === speed) return true;
+
+      // 속도 설정 시도
+      video.playbackRate = speed;
+      
+      // 설정 확인 및 재시도
+      if (video.playbackRate !== speed) {
+        // 비디오가 준비될 때까지 대기
+        await new Promise(resolve => {
+          const checkReady = () => {
+            if (video.readyState >= 3) {
+              resolve();
+            } else {
+              setTimeout(checkReady, 100);
+            }
+          };
+          checkReady();
+        });
+
+        // 재시도
+        video.playbackRate = speed;
+        
+        // 최종 확인
+        if (video.playbackRate !== speed) {
+          console.warn('Failed to set video speed after retry');
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error applying speed to video:', error);
       return false;
     }
   }
 
-  // 비디오 요소 초기화
+  // 비디오 요소 초기화 함수 개선
   async function initializeVideo(video) {
     if (!video || state.initializedVideos.has(video)) return;
 
     try {
-      if (!state.contextValid) {
-        state.contextValid = await attemptRecovery();
-        if (!state.contextValid) return;
+      if (state.pendingSpeedUpdate !== null) {
+        video.playbackRate = state.pendingSpeedUpdate;
       }
 
-      // 속도 변경 이벤트 리스너
       const handleSpeedChange = () => {
         if (video.playbackRate !== state.currentSpeed) {
           state.currentSpeed = video.playbackRate;
@@ -66,7 +631,6 @@
       video.addEventListener('ratechange', handleSpeedChange);
       state.cleanup.add(() => video.removeEventListener('ratechange', handleSpeedChange));
 
-      // 현재 속도 적용
       if (state.currentSpeed !== 1.0) {
         video.playbackRate = state.currentSpeed;
       }
@@ -77,35 +641,109 @@
     }
   }
 
-  // 비디오 요소 감시
+  // 비디오 감지 최적화
   function observeVideoElements() {
-    const observer = new MutationObserver((mutations) => {
-      const shouldCheck = mutations.some(mutation => 
+    if (state.videoObserver) {
+      state.videoObserver.disconnect();
+    }
+
+    // 즉시 실행 함수로 현재 비디오 처리
+    const videos = document.getElementsByTagName('video');
+    for (const video of videos) {
+      if (!state.initializedVideos.has(video)) {
+        initializeVideo(video);
+      }
+    }
+
+    state.videoObserver = new MutationObserver((mutations) => {
+      const hasNewVideos = mutations.some(mutation => 
         Array.from(mutation.addedNodes).some(node => 
           node.nodeName === 'VIDEO' || node.getElementsByTagName?.('video').length > 0
         )
       );
 
-      if (shouldCheck) {
-        initializeAllVideos();
+      if (hasNewVideos) {
+        const videos = document.getElementsByTagName('video');
+        for (const video of videos) {
+          if (!state.initializedVideos.has(video)) {
+            initializeVideo(video);
+          }
+        }
       }
     });
 
-    observer.observe(document.documentElement, {
+    state.videoObserver.observe(document.documentElement, {
       childList: true,
       subtree: true
     });
 
-    state.cleanup.add(() => observer.disconnect());
+    state.cleanup.add(() => {
+      if (state.videoObserver) {
+        state.videoObserver.disconnect();
+        state.videoObserver = null;
+      }
+    });
   }
 
-  // 모든 비디오 요소 초기화
-  async function initializeAllVideos() {
-    const videos = document.getElementsByTagName('video');
-    for (const video of videos) {
-      await initializeVideo(video);
+  // URL 변경 감지 함수 강화
+  function observeUrlChanges() {
+    if (state.documentObserver) {
+      state.documentObserver.disconnect();
     }
+
+    // 페이지 변경 감지
+    state.documentObserver = new MutationObserver(async (mutations) => {
+      if (document.location.href !== state.lastUrl) {
+        queueInitialization(async () => {
+          state.autoSpeedApplied = false;
+          await applySiteSettings(true);
+        });
+      }
+    });
+
+    state.documentObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+
+    // History API 변경 감지
+    const handleUrlChange = () => {
+      if (document.location.href !== state.lastUrl) {
+        queueInitialization(async () => {
+          state.autoSpeedApplied = false;
+          await applySiteSettings(true);
+        });
+      }
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('pushState', handleUrlChange);
+    window.addEventListener('replaceState', handleUrlChange);
+
+    state.cleanup.add(() => {
+      if (state.documentObserver) {
+        state.documentObserver.disconnect();
+        state.documentObserver = null;
+      }
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('pushState', handleUrlChange);
+      window.removeEventListener('replaceState', handleUrlChange);
+    });
   }
+
+  // History API 메소드 오버라이드
+  const originalPushState = history.pushState;
+  const originalReplaceState = history.replaceState;
+
+  history.pushState = function() {
+    originalPushState.apply(this, arguments);
+    window.dispatchEvent(new Event('pushState'));
+  };
+
+  history.replaceState = function() {
+    originalReplaceState.apply(this, arguments);
+    window.dispatchEvent(new Event('replaceState'));
+  };
 
   // 메시지 핸들러
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -134,7 +772,7 @@
 
             state.currentSpeed = request.speed;
             for (const video of videos) {
-              video.playbackRate = request.speed;
+              applySpeedToVideo(video, request.speed);
             }
             return { success: true, speed: request.speed };
 
@@ -152,7 +790,7 @@
             
             const videoElements = document.getElementsByTagName('video');
             for (const video of videoElements) {
-              video.playbackRate = newSpeed;
+              applySpeedToVideo(video, newSpeed);
             }
             
             return { success: true, speed: newSpeed };
@@ -330,7 +968,7 @@
         const speed = parseFloat(input.value);
         if (!isNaN(speed) && speed >= 0.1 && speed <= 16) {
           document.querySelectorAll('video').forEach(video => {
-            video.playbackRate = speed;
+            applySpeedToVideo(video, speed);
           });
           popup.remove();
         }
@@ -358,27 +996,28 @@
     }
   }, true);  // 이벤트 캡처링 단계에서 처리
 
-  // 초기화 함수
+  // 초기화 함수 개선
   async function initialize() {
     try {
+      // 빠른 초기 적용
+      quickInit();
+
+      // 컨텍스트 설정
       if (!state.contextValid) {
-        state.contextValid = await attemptRecovery();
-        if (!state.contextValid) {
+        const recovered = await attemptRecovery(true);
+        if (!recovered) {
           throw new Error('Failed to establish valid context');
         }
       }
 
-      await initializeAllVideos();
+      // 감시자 설정
       observeVideoElements();
-      
-      // 포트 연결 설정
-      const port = chrome.runtime.connect({ name: "videoSpeedController" });
-      port.onDisconnect.addListener(async () => {
-        state.contextValid = false;
-        await attemptRecovery();
-      });
+      observeUrlChanges();
 
       state.initialized = true;
+
+      // 초기 사이트 설정 적용
+      await applySiteSettings(true);
     } catch (error) {
       console.error('Initialization failed:', error);
       throw error;
@@ -397,6 +1036,18 @@
   // 이벤트 리스너 설정
   window.addEventListener('content-script-cleanup', cleanup);
 
-  // 초기화 실행
+  // 초기화 즉시 실행
   initialize().catch(console.error);
+
+  // 주기적인 상태 검사 개선
+  setInterval(async () => {
+    if (!state.contextValid || !state.autoSpeedApplied) {
+      if (!state.contextValid) {
+        await attemptRecovery(true);
+      }
+      if (state.contextValid) {
+        await applySiteSettings(true);
+      }
+    }
+  }, 2000);
 })();

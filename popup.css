@@ -288,16 +288,47 @@ h5::after {
 }
 
 .site-item {
-	background: var(--site-item-bg);
-	border-radius: 12px;
-	padding: 16px;
-	margin: 8px 0;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	padding: 12px 16px;
+	background: var(--site-item-bg);
+	border-radius: 12px;
+	margin: 8px 0;
 	border: 1px solid var(--border-color);
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03);
-	animation: slideIn 0.3s ease-out;
+	transition: all 0.3s ease;
+}
+
+.site-info {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.site-pattern {
+	font-size: 0.7rem;
+	color: var(--text-color);
+}
+
+.delete-site {
+	padding: 6px 12px;
+	border-radius: 8px;
+	border: none;
+	background: rgba(239, 68, 68, 0.1);
+	color: #dc2626;
+	font-size: 0.7rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.delete-site:hover {
+	background: rgba(239, 68, 68, 0.2);
+	transform: translateY(-1px);
+}
+
+.delete-site:active {
+	transform: translateY(0);
 }
 
 /* 단축키 스타일 */
