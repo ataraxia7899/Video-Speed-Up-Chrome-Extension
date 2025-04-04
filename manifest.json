@@ -1,14 +1,22 @@
 {
 	"manifest_version": 3,
 	"name": "__MSG_extName__",
-	"version": "1.0.5",
+	"version": "1.0.6",
 	"description": "__MSG_extDescription__",
-	"default_locale": "en",
-	"author": {
-		"email": "your-email@example.com"
+	"default_locale": "ko",
+	"permissions": [
+		"storage",
+		"activeTab",
+		"scripting",
+		"tabs"
+	],
+	"host_permissions": [
+		"http://*/*",
+		"https://*/*"
+	],
+	"background": {
+		"service_worker": "background.js"
 	},
-	"permissions": ["storage", "activeTab", "scripting", "webNavigation", "tabs"],
-	"host_permissions": ["*://*/*", "*://www.youtube.com/*", "*://youtube.com/*"],
 	"action": {
 		"default_popup": "popup.html",
 		"default_icon": {
@@ -22,35 +30,23 @@
 		"48": "icons/icon48.png",
 		"128": "icons/icon128.png"
 	},
+	"commands": {
+		"toggle-speed-input": {
+			"suggested_key": {
+				"default": "Ctrl+Period",
+				"mac": "Command+Period"
+			},
+			"description": "__MSG_openSpeedPopup__"
+		}
+	},
 	"content_scripts": [
 		{
-			"matches": ["*://*/*"],
+			"matches": [
+				"http://*/*",
+				"https://*/*"
+			],
 			"js": ["content.js"],
-			"run_at": "document_start",
-			"world": "MAIN",
-			"all_frames": false,
-			"match_about_blank": true
+			"run_at": "document_end"
 		}
-	],
-	"background": {
-		"service_worker": "background.js",
-		"type": "module",
-		"persisted": true
-	},
-	"commands": {
-		"open-speed-popup": {
-			"suggested_key": {
-				"default": "Ctrl+Period"
-			},
-			"description": "속도 조절 팝업 열기"
-		}
-	},
-	"web_accessible_resources": [
-		{
-			"resources": ["content.js"],
-			"matches": ["*://*/*"],
-			"use_dynamic_url": true
-		}
-	],
-	"incognito": "split"
+	]
 }

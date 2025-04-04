@@ -86,15 +86,21 @@
 	}
 
 	// Content Script 주입 함수 개선
-	async function injectContentScript(tabId) {
+	async function injectContentScript(tabId, url) {
 		try {
+			// chrome:// 및 edge:// URL 체크
+			if (!url || url.startsWith('chrome://') || url.startsWith('edge://')) {
+				return false;
+			}
+
 			await chrome.scripting.executeScript({
 				target: { tabId },
-				files: ['content.js'],
+				files: ['content.js']
 			});
+
 			return true;
 		} catch (error) {
-			log(`Failed to inject content script in tab ${tabId}:`, error);
+			console.error(`Failed to inject content script in tab ${tabId}:`, error);
 			return false;
 		}
 	}
@@ -320,19 +326,21 @@
 
 	// 탭 업데이트 핸들러 개선
 	chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-		if (!tab?.id || !tab.url?.startsWith('http')) return;
+		if (!tab?.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) {
+			return;
+		}
 
-		try {
-			if (changeInfo.status === 'loading') {
-				resetTabState(tabId);
-			} else if (changeInfo.status === 'complete') {
-				if (isYouTubeUrl(tab.url)) {
-					await queueContentScriptInjection(tabId);
+		if (changeInfo.status === 'complete') {
+			try {
+				const injected = await injectContentScript(tabId, tab.url);
+				if (injected) {
+					// 초기화 확인
+					await new Promise(resolve => setTimeout(resolve, 100));
+					await chrome.tabs.sendMessage(tabId, { action: 'initializeCheck' });
 				}
+			} catch (error) {
+				console.error('Tab initialization error:', error);
 			}
-		} catch (error) {
-			console.error('Tab update error:', error);
-			resetTabState(tabId);
 		}
 	});
 
@@ -342,74 +350,43 @@
 	});
 
 	// 웹 네비게이션 이벤트 리스너
-	chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
-		if (isYouTubeUrl(details.url)) {
-			handleYouTubeNavigation(details).catch(console.error);
-		}
-	});
-
-	chrome.webNavigation.onCompleted.addListener((details) => {
-		if (isYouTubeUrl(details.url)) {
-			handleYouTubeNavigation(details).catch(console.error);
-		}
-	});
-
-	// 메시지 리스너 개선
-	chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-		if (!sender.tab?.id) {
-			sendResponse({ error: 'Invalid sender' });
-			return true;
-		}
-
-		const processMessage = async () => {
-			try {
-				switch (message.action) {
-					case 'ping':
-						return { success: true };
-
-					case 'requestReinjection':
-						await queueContentScriptInjection(sender.tab.id);
-						return { success: true };
-
-					default:
-						return { error: 'Unknown action' };
-				}
-			} catch (error) {
-				console.error('Message handler error:', error);
-				return { error: error.message };
+	if (chrome.webNavigation) {
+		chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
+			if (isYouTubeUrl(details.url)) {
+				handleYouTubeNavigation(details).catch(console.error);
 			}
-		};
+		});
 
-		processMessage().then(sendResponse);
-		return true;
-	});
-
-	// 명령어 핸들러
-	if (chrome.commands) {
-		chrome.commands.onCommand.addListener(async (command) => {
-			try {
-				if (command === 'open-speed-popup') {
-					const [tab] = await chrome.tabs.query({
-						active: true,
-						currentWindow: true,
-					});
-
-					if (!tab?.id || !tab.url?.startsWith('http')) {
-						log('Invalid tab or unsupported URL');
-						return;
-					}
-
-					await sendMessageWithRetry(tab.id, { action: 'openSpeedPopup' });
-					log('Speed popup command processed');
-				}
-			} catch (error) {
-				log('Command error:', error);
+		chrome.webNavigation.onCompleted.addListener((details) => {
+			if (isYouTubeUrl(details.url)) {
+				handleYouTubeNavigation(details).catch(console.error);
 			}
 		});
 	}
 
+	// 메시지 핸들러
+	chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+		if (request.action === 'ping') {
+			sendResponse({ success: true });
+			return true;
+		}
+	});
+
+	// 포트 연결 관리
+	chrome.runtime.onConnect.addListener((port) => {
+		if (port.name === "videoSpeedController") {
+			const tabId = port.sender?.tab?.id;
+			if (tabId) {
+				BackgroundController.ports.set(tabId, port);
+				port.onDisconnect.addListener(() => {
+					BackgroundController.ports.delete(tabId);
+				});
+			}
+		}
+	});
+
 	// 확장 프로그램 설치/업데이트 핸들러 개선
-	chrome.runtime.onInstalled.addListener((details) => {
+	chrome.runtime.onInstalled.addListener(async (details) => {
 		log('Extension event:', details.reason);
 
 		if (details.reason === 'install' || details.reason === 'update') {
@@ -422,14 +399,45 @@
 				log('Default settings initialized');
 			});
 
-			// 활성 탭에서 콘텐츠 스크립트 재초기화
-			chrome.tabs.query({ active: true }, (tabs) => {
-				tabs.forEach((tab) => {
-					if (tab.url?.startsWith('http')) {
-						reinjectContentScript(tab.id).catch(console.error);
+			const tabs = await chrome.tabs.query({ url: '*://*/*' });
+			for (const tab of tabs) {
+				try {
+					await chrome.scripting.executeScript({
+						target: { tabId: tab.id },
+						files: ['content.js']
+					});
+				} catch (error) {
+					console.error(`Failed to inject content script in tab ${tab.id}:`, error);
+				}
+			}
+		}
+	});
+
+	// 단축키 명령어 처리 개선
+	chrome.commands.onCommand.addListener(async (command) => {
+		if (command === "toggle-speed-input") {
+			try {
+				const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+				if (!tab?.id || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) {
+					return;
+				}
+
+				try {
+					await chrome.tabs.sendMessage(tab.id, { action: 'toggleSpeedInput' });
+				} catch (error) {
+					if (error.message.includes('Could not establish connection')) {
+						// content script 재주입 시도
+						const injected = await injectContentScript(tab.id, tab.url);
+						if (injected) {
+							// 짧은 지연 후 메시지 재전송
+							await new Promise(resolve => setTimeout(resolve, 100));
+							await chrome.tabs.sendMessage(tab.id, { action: 'toggleSpeedInput' });
+						}
 					}
-				});
-			});
+				}
+			} catch (error) {
+				console.error('단축키 처리 오류:', error);
+			}
 		}
 	});
 
@@ -452,20 +460,6 @@
 			return false;
 		}
 	}
-
-	// Add port connection tracking
-	chrome.runtime.onConnect.addListener((port) => {
-		const tabId = port.sender?.tab?.id;
-		if (!tabId) return;
-
-		BackgroundController.ports.set(tabId, port);
-		BackgroundController.portStates.set(tabId, { isValid: true });
-
-		port.onDisconnect.addListener(() => {
-			BackgroundController.ports.delete(tabId);
-			BackgroundController.portStates.set(tabId, { isValid: false });
-		});
-	});
 
 	// Add timeout wrapper for messages
 	async function sendMessageWithTimeout(tabId, message, timeout) {

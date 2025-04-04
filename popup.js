@@ -549,18 +549,26 @@ async function loadSavedSettings() {
 	}
 }
 
-function updateShortcutInputs(settings) {
-	const { speedPopupShortcut } = settings;
-
-	// 팝업 단축키
-	if (speedPopupShortcut) {
-		const input = document.getElementById('popup-shortcut');
-		if (input) {
-			input.dataset.shortcut = speedPopupShortcut;
-			input.value = speedPopupShortcut;
-		}
-	}
-}
+// 단축키 입력 팝업 처리
+document.addEventListener('keydown', async (e) => {
+    // Ctrl + . 입력 감지
+    if (e.ctrlKey && e.key === '.') {
+        e.preventDefault();
+        
+        // 간단한 입력 팝업 생성
+        const speedValue = prompt('원하는 배속을 입력하세요 (0.1 ~ 16):', '2.0');
+        
+        if (speedValue === null) return; // 취소 버튼 클릭 시
+        
+        const speed = parseFloat(speedValue);
+        if (utils.isValidSpeed(speed)) {
+            await setSpeed(speed);
+            window.close(); // 팝업창 닫기
+        } else {
+            alert('유효한 속도를 입력해주세요 (0.1 ~ 16)');
+        }
+    }
+});
 
 // HTML 요소에 i18n 메시지 적용하는 함수 추가
 function localizeHtmlPage() {
@@ -604,13 +612,28 @@ function localizeSpeedInput() {
     }
 }
 
-// DOM이 로드된 후 초기화 실행 (중복 호출 제거)
+// 단축키 설정 초기화 함수 개선
+async function initializeShortcuts() {
+    try {
+        const result = await chrome.storage.sync.get(['speedPopupShortcut']);
+        document.querySelectorAll('.shortcut-list strong').forEach(el => {
+            if (el.textContent.includes('Ctrl + .')) {
+                el.textContent = result.speedPopupShortcut || 'Ctrl + .';
+            }
+        });
+    } catch (error) {
+        console.error('단축키 초기화 오류:', error);
+    }
+}
+
+// DOM이 로드된 후 초기화 실행
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        await initializeApp();
-        // initializeApp 내부에서 이미 호출되므로 중복 호출 제거
-        localizeSpeedInput();
+        await Promise.all([
+            initializeApp(),
+            initializeShortcuts()
+        ]);
     } catch (error) {
-        console.error('Initialization error:', error);
+        console.error('초기화 오류:', error);
     }
 });
