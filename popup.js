@@ -597,27 +597,6 @@ async function loadSavedSettings() {
 	}
 }
 
-// 단축키 입력 팝업 처리
-document.addEventListener('keydown', async (e) => {
-    // Ctrl + . 입력 감지
-    if (e.ctrlKey && e.key === '.') {
-        e.preventDefault();
-        
-        // 간단한 입력 팝업 생성
-        const speedValue = prompt('원하는 배속을 입력하세요 (0.1 ~ 16):', '2.0');
-        
-        if (speedValue === null) return; // 취소 버튼 클릭 시
-        
-        const speed = parseFloat(speedValue);
-        if (utils.isValidSpeed(speed)) {
-            await setSpeed(speed);
-            window.close(); // 팝업창 닫기
-        } else {
-            alert('유효한 속도를 입력해주세요 (0.1 ~ 16)');
-        }
-    }
-});
-
 // HTML 요소에 i18n 메시지 적용하는 함수 추가
 function localizeHtmlPage() {
 	// 일반 텍스트 요소
@@ -683,5 +662,66 @@ document.addEventListener('DOMContentLoaded', async () => {
         ]);
     } catch (error) {
         console.error('초기화 오류:', error);
+    }
+});
+
+// 팝업 생성 함수
+function createSpeedInputPopup() {
+    const popup = document.createElement('div');
+    popup.className = 'speed-popup';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'speed-popup-input';
+    input.placeholder = '0.1 ~ 16';
+
+    popup.appendChild(input);
+    return { popup, input };
+}
+
+// 단축키 입력 팝업 처리
+document.addEventListener('keydown', async (e) => {
+    // Ctrl + . 입력 감지
+    if (e.ctrlKey && e.key === '.') {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const { popup, input } = createSpeedInputPopup();
+        document.body.appendChild(popup);
+        
+        input.focus();
+        input.select();
+
+        const handleKeyDown = async (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const speed = parseFloat(input.value);
+                if (!isNaN(speed) && speed >= 0.1 && speed <= 16) {
+                    await setSpeed(speed);
+                    popup.remove();
+                    window.close();
+                } else {
+                    alert('유효한 속도를 입력해주세요 (0.1 ~ 16)');
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                popup.remove();
+            }
+            e.stopPropagation();
+        };
+
+        input.addEventListener('keydown', handleKeyDown);
+
+        // 팝업 외부 클릭 시 닫기
+        const handleOutsideClick = (e) => {
+            if (!popup.contains(e.target)) {
+                popup.remove();
+                document.removeEventListener('click', handleOutsideClick);
+            }
+        };
+
+        setTimeout(() => {
+            document.addEventListener('click', handleOutsideClick);
+        }, 100);
     }
 });

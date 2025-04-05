@@ -475,6 +475,17 @@ h5::after {
 	}
 }
 
+@keyframes fadeInScale {
+	from {
+		opacity: 0;
+		transform: scale(0.9);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
 /* 스크롤바 스타일 */
 ::-webkit-scrollbar {
 	width: 8px;
@@ -677,4 +688,55 @@ body.dark-mode {
 /* 다크모드에서의 그라데이션 색상 조정 */
 .dark-mode .preset-section h5::after {
 	background: linear-gradient(90deg, #5865f2, #7289da);
+}
+
+/* 팝업 스타일 */
+.speed-popup {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background: var(--card-bg);
+	padding: 20px;
+	border-radius: 12px;
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+	z-index: 2147483647;
+	animation: fadeInScale 0.2s ease-out;
+	border: 1px solid var(--border-color);
+}
+
+.speed-popup-input {
+	width: 120px;
+	padding: 12px;
+	font-size: 20px;
+	text-align: center;
+	border: 2px solid var(--border-color);
+	border-radius: 8px;
+	outline: none;
+	transition: all 0.2s ease;
+	background: var(--input-bg);
+	color: var(--text-color);
+}
+
+.speed-popup-input:focus {
+	border-color: var(--primary-color);
+	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+	transform: translateY(-1px);
+}
+
+.dark-mode .speed-popup {
+	background: #1a1d21;
+	border-color: rgba(255, 255, 255, 0.1);
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .speed-popup-input {
+	background: #2d2d2d;
+	border-color: #404040;
+	color: #e4e6eb;
+}
+
+.dark-mode .speed-popup-input:focus {
+	border-color: #60a5fa;
+	box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
 }

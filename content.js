@@ -49,40 +49,6 @@
     recoveryMode: false
   };
 
-  // 다크모드 설정 추가
-  const darkModeState = {
-    isDark: false
-  };
-
-  // 다크모드 상태 로드
-  async function loadDarkModeState() {
-    try {
-      const result = await chrome.storage.sync.get(['darkMode']);
-      darkModeState.isDark = result.darkMode || false;
-    } catch (error) {
-      console.error('다크모드 설정 로드 실패:', error);
-    }
-  }
-
-  // 다크모드 상태 저장
-  async function saveDarkModeState() {
-    try {
-      await chrome.storage.sync.set({ darkMode: darkModeState.isDark });
-    } catch (error) {
-      console.error('다크모드 설정 저장 실패:', error);
-    }
-  }
-
-  // 다크모드 토글 함수
-  function toggleDarkMode() {
-    darkModeState.isDark = !darkModeState.isDark;
-    saveDarkModeState();
-    const popup = document.getElementById('speed-input-popup');
-    if (popup) {
-      popup.classList.toggle('dark-mode');
-    }
-  }
-
   // 오류 로깅 최적화 함수
   function throttledError(message, error = null) {
     const now = Date.now();
@@ -442,7 +408,6 @@
   // 초기화 함수 개선
   async function initialize() {
     try {
-      await loadDarkModeState();
       await establishConnection();
       
       // 상태 초기화
@@ -694,13 +659,10 @@
     );
   }
 
-  // 속도 입력 팝업 UI 생성 함수
+  // 팝업 생성 함수
   function createSpeedInputPopup() {
     const popup = document.createElement('div');
     popup.id = 'speed-input-popup';
-    if (darkModeState.isDark) {
-      popup.classList.add('dark-mode');
-    }
     
     // 스타일 추가
     const style = document.createElement('style');
@@ -724,12 +686,6 @@
         transition: all 0.3s ease;
       }
 
-      #speed-input-popup.dark-mode {
-        background: #1a1d21;
-        color: #e4e6eb;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-      }
-
       .popup-title {
         font-size: 18px;
         font-weight: 600;
@@ -737,10 +693,6 @@
         margin: 0;
         padding: 0;
         color: #1a1a1a;
-      }
-
-      .dark-mode .popup-title {
-        color: #e4e6eb;
       }
 
       .input-container {
@@ -760,12 +712,8 @@
         transition: all 0.2s ease;
         margin: 0 auto;
         display: block;
-      }
-
-      .dark-mode .speed-input {
-        background: #2d2d2d;
-        border-color: #404040;
-        color: #e4e6eb;
+        background: #ffffff;
+        color: #1a1a1a;
       }
 
       .speed-input:focus {
@@ -773,33 +721,19 @@
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
       }
 
-      .dark-mode .speed-input:focus {
-        border-color: #60a5fa;
-        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
-      }
-
       .info-container {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: center;
         background: #f8fafc;
         border-radius: 6px;
         padding: 8px;
       }
 
-      .dark-mode .info-container {
-        background: #2d2d2d;
-      }
-
       .shortcut-info {
         color: #64748b;
         font-size: 13px;
-        flex-grow: 1;
-        margin-right: 8px;
-      }
-
-      .dark-mode .shortcut-info {
-        color: #94a3b8;
+        text-align: center;
       }
 
       .shortcut-key {
@@ -808,11 +742,6 @@
         border-radius: 4px;
         font-weight: 500;
         color: #475569;
-      }
-
-      .dark-mode .shortcut-key {
-        background: #404040;
-        color: #e4e6eb;
       }
 
       @keyframes fadeInScale {
@@ -829,10 +758,6 @@
       #speed-input-popup {
         animation: fadeInScale 0.2s ease-out;
         border: 1px solid rgba(0, 0, 0, 0.1);
-      }
-
-      #speed-input-popup.dark-mode {
-        border-color: rgba(255, 255, 255, 0.1);
       }
     `;
     document.head.appendChild(style);
@@ -859,19 +784,7 @@
     shortcutInfo.className = 'shortcut-info';
     shortcutInfo.innerHTML = '<span class="shortcut-key">Enter</span> 적용 | <span class="shortcut-key">ESC</span> 취소';
 
-    const darkModeButton = document.createElement('button');
-    darkModeButton.className = 'dark-mode-toggle';
-    darkModeButton.innerHTML = darkModeState.isDark ? '🌞' : '🌙';
-    darkModeButton.title = darkModeState.isDark ? '라이트 모드로 전환' : '다크 모드로 전환';
-    darkModeButton.onclick = (e) => {
-      e.stopPropagation();
-      toggleDarkMode();
-      darkModeButton.innerHTML = darkModeState.isDark ? '🌞' : '🌙';
-      darkModeButton.title = darkModeState.isDark ? '라이트 모드로 전환' : '다크 모드로 전환';
-    };
-
     infoContainer.appendChild(shortcutInfo);
-    infoContainer.appendChild(darkModeButton);
     inputContainer.appendChild(input);
 
     popup.appendChild(title);
