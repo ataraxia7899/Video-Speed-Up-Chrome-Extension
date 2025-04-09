@@ -725,3 +725,39 @@ document.addEventListener('keydown', async (e) => {
         }, 100);
     }
 });
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const currentSpeedElement = document.getElementById('current-speed');
+    const speedInput = document.querySelector('.speed-input input');
+    
+    // 현재 탭의 비디오 속도를 가져오는 함수
+    async function getCurrentSpeed() {
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab?.id) return 1.0;
+
+            const response = await chrome.tabs.sendMessage(tab.id, { action: 'getCurrentSpeed' });
+            return response?.speed || 1.0;
+        } catch (error) {
+            console.error('Error getting current speed:', error);
+            return 1.0;
+        }
+    }
+
+    // 현재 속도를 화면에 표시하는 함수
+    async function updateSpeedDisplay() {
+        const speed = await getCurrentSpeed();
+        if (currentSpeedElement) {
+            currentSpeedElement.textContent = speed.toFixed(2);
+        }
+        if (speedInput) {
+            speedInput.value = speed.toFixed(2);
+        }
+    }
+
+    // 페이지 로드시 초기 속도 표시
+    await updateSpeedDisplay();
+
+    // 주기적으로 속도 업데이트 (0.5초마다)
+    setInterval(updateSpeedDisplay, 500);
+});

@@ -376,6 +376,13 @@
             showSpeedInputPopup();
             return { success: true };
 
+          case 'getCurrentSpeed':
+            const video = document.querySelector('video');
+            if (video) {
+              return { success: true, speed: video.playbackRate };
+            }
+            return { success: false, speed: 1.0 };
+
           case 'setSpeed':
             if (!state.contextValid) {
               const recovered = await attemptRecovery(true);
