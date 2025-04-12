@@ -16,16 +16,17 @@
     retryDelay: 1000,
     initializationQueue: Promise.resolve(),
     youtubeConfig: {
-      RETRY_INTERVAL: 50,  // 100ms에서 50ms로 감소
-      MAX_RETRIES: 20,     // 재시도 횟수 감소
-      MUTATION_DEBOUNCE: 50, // 100ms에서 50ms로 감소
+      RETRY_INTERVAL: 50,
+      MAX_RETRIES: 20,
+      MUTATION_DEBOUNCE: 50,
       isYouTube: window.location.hostname.includes('youtube.com'),
       lastSpeedUpdate: 0,
-      updateDelay: 100,    // 250ms에서 100ms로 감소
+      updateDelay: 100,
       retryCount: 0,
       isShortsPage: false,
       shortsObserver: null,
-      lastShortsVideoId: null
+      lastShortsVideoId: null,
+      defaultSpeed: 1.0  // YouTube의 기본 재생 속도
     },
     connectionConfig: {
       reconnectAttempts: 0,
@@ -85,6 +86,7 @@
         
         const siteSettings = result.siteSettings || {};
         const currentUrl = window.location.href;
+        let matchFound = false;
         
         for (const [pattern, setting] of Object.entries(siteSettings)) {
           const speed = typeof setting === 'object' ? setting.speed : setting;
@@ -96,8 +98,18 @@
             }
             state.currentSpeed = speed;
             state.autoSpeedApplied = true;
+            matchFound = true;
             break;
           }
+        }
+
+        // 매칭되는 패턴이 없을 경우 기본 속도로 설정
+        if (!matchFound) {
+          for (const video of videos) {
+            video.playbackRate = state.youtubeConfig.defaultSpeed;
+          }
+          state.currentSpeed = state.youtubeConfig.defaultSpeed;
+          state.autoSpeedApplied = false;
         }
       });
     }
@@ -286,7 +298,6 @@
       const siteSettings = result.siteSettings || {};
       const currentUrl = window.location.href;
       
-      // URL이 변경되지 않았고 이미 적용되었다면 스킵
       if (!force && currentUrl === state.lastUrl && state.autoSpeedApplied) {
         return true;
       }
@@ -302,12 +313,10 @@
           state.currentSpeed = speed;
           state.pendingSpeedUpdate = speed;
 
-          // YouTube Shorts인 경우 특별 처리
           if (pattern.includes('youtube.com/shorts')) {
             return await handleYouTubeShortsVideo(speed);
           }
 
-          // 일반 비디오 처리
           const videos = document.getElementsByTagName('video');
           const applications = await Promise.all(
             Array.from(videos).map(video => applySpeedToVideo(video, speed))
@@ -325,6 +334,15 @@
 
           break;
         }
+      }
+
+      // 매칭되는 패턴이 없을 경우 기본 속도 적용
+      if (!settingApplied) {
+        const videos = document.getElementsByTagName('video');
+        await Promise.all(
+          Array.from(videos).map(video => applySpeedToVideo(video, state.youtubeConfig.defaultSpeed))
+        );
+        state.currentSpeed = state.youtubeConfig.defaultSpeed;
       }
 
       state.autoSpeedApplied = settingApplied;
