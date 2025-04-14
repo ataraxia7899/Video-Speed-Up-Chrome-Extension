@@ -416,6 +416,9 @@
 					target: { tabId },
 					files: ['content.js'],
 				});
+				// content script 주입 후 저장된 배속 적용
+				await new Promise(resolve => setTimeout(resolve, 500)); // 스크립트 초기화 대기
+				await applyTabSpeed(tabId);
 			} catch (error) {
 				throttledLog('error', 'Tab update handler error:', error);
 			}
@@ -444,24 +447,49 @@
 
 	// 메시지 핸들러
 	chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-		if (request.action === 'reloadContentScript') {
+		const handleMessage = async () => {
 			const tabId = sender.tab?.id;
-			if (tabId) {
-				chrome.scripting.executeScript({
-					target: { tabId },
-					files: ['content.js']
-				}).catch(error => {
-					console.error('Content script reload failed:', error);
-				});
+
+			switch (request.action) {
+				case 'reloadContentScript':
+					if (tabId) {
+						try {
+							await chrome.scripting.executeScript({
+								target: { tabId },
+								files: ['content.js']
+							});
+							await applyTabSpeed(tabId);
+							return { success: true };
+						} catch (error) {
+							console.error('Content script reload failed:', error);
+							return { success: false, error: error.message };
+						}
+					}
+					break;
+
+				case 'setSpeed':
+					if (tabId && typeof request.speed === 'number') {
+						await saveTabSpeed(tabId, request.speed);
+						return { success: true };
+					}
+					break;
+
+				case 'getSpeed':
+					if (tabId) {
+						const speed = await loadTabSpeed(tabId);
+						return { success: true, speed: speed || 1.0 };
+					}
+					break;
+
+				case 'ping':
+					return { success: true };
 			}
-			sendResponse({ success: true });
-			return true;
-		}
-		
-		if (request.action === 'ping') {
-			sendResponse({ success: true });
-			return true;
-		}
+
+			return { success: false };
+		};
+
+		handleMessage().then(sendResponse);
+		return true;
 	});
 
 	// 컨텍스트 복구 함수
@@ -620,5 +648,54 @@
 				setTimeout(() => reject(new Error('Message timeout')), timeout)
 			),
 		]);
+	}
+
+	// 탭별 배속 상태를 저장할 Map 추가
+	const tabSpeedStates = new Map();
+
+	// 탭별 배속 저장 함수
+	async function saveTabSpeed(tabId, speed) {
+		if (!tabId || typeof speed !== 'number') return;
+		
+		tabSpeedStates.set(tabId, speed);
+		await chrome.storage.local.set({
+			[`tab_${tabId}_speed`]: {
+				speed,
+				timestamp: Date.now()
+			}
+		});
+	}
+
+	// 탭별 배속 로드 함수
+	async function loadTabSpeed(tabId) {
+		if (!tabId) return null;
+		
+		try {
+			const result = await chrome.storage.local.get(`tab_${tabId}_speed`);
+			const savedData = result[`tab_${tabId}_speed`];
+			
+			if (savedData && typeof savedData.speed === 'number') {
+				tabSpeedStates.set(tabId, savedData.speed);
+				return savedData.speed;
+			}
+		} catch (error) {
+			console.error('Error loading tab speed:', error);
+		}
+		return null;
+	}
+
+	// content.js 주입 후 배속 적용
+	async function applyTabSpeed(tabId) {
+		const speed = await loadTabSpeed(tabId);
+		if (speed) {
+			try {
+				await chrome.tabs.sendMessage(tabId, {
+					action: 'setSpeed',
+					speed: speed
+				});
+			} catch (error) {
+				console.error('Error applying tab speed:', error);
+			}
+		}
 	}
 })();
