@@ -47,186 +47,107 @@ async function sendMessageToTab(tabId, message) {
 	});
 }
 
-// 사용자 설정 저장 함수 개선
-async function saveUserPreferences() {
+// 탭별 상태 관리를 위한 함수들
+async function getTabSpeed(tabId) {
+    try {
+        const response = await chrome.tabs.sendMessage(tabId, { action: 'getCurrentSpeed' });
+        return response?.speed || 1.0;
+    } catch (error) {
+        console.error('Error getting tab speed:', error);
+        return 1.0;
+    }
+}
+
+async function setTabSpeed(tabId, speed) {
+    if (!utils.isValidSpeed(speed)) {
+        return false;
+    }
+
+    try {
+        const response = await chrome.tabs.sendMessage(tabId, {
+            action: 'setSpeed',
+            speed: parseFloat(speed)
+        });
+        return response?.success || false;
+    } catch (error) {
+        console.error('Error setting tab speed:', error);
+        return false;
+    }
+}
+
+// 사용자 설정 저장 함수 업데이트
+async function saveUserPreferences(tabId, speed) {
     try {
         const currentSettings = {
-            lastUsedSpeed: document.getElementById('current-speed').textContent,
-            speedInputValue: document.getElementById('speed-input').value,
+            tabId,
+            speed,
             timestamp: Date.now()
         };
 
-        await chrome.storage.sync.set({ userPreferences: currentSettings });
-        utils.log('User preferences saved:', currentSettings);
+        await chrome.storage.local.set({
+            [`tab_${tabId}_speed`]: currentSettings
+        });
     } catch (error) {
-        utils.log('Error saving preferences:', error);
+        console.error('Error saving preferences:', error);
     }
 }
 
-// 저장된 사용자 설정 불러오기 함수 개선
-async function loadUserPreferences() {
+// 저장된 사용자 설정 불러오기 함수 업데이트
+async function loadUserPreferences(tabId) {
     try {
-        const result = await chrome.storage.sync.get(['userPreferences']);
-        const preferences = result.userPreferences;
+        const result = await chrome.storage.local.get([`tab_${tabId}_speed`]);
+        const preferences = result[`tab_${tabId}_speed`];
 
-        if (preferences) {
-            // 마지막으로 사용한 속도 복원
-            if (preferences.lastUsedSpeed) {
-                updateSpeedDisplays(preferences.lastUsedSpeed);
-                setSpeed(parseFloat(preferences.lastUsedSpeed));
-            }
-
-            // 속도 입력 필드 값 복원
-            const speedInput = document.getElementById('speed-input');
-            if (speedInput && preferences.speedInputValue) {
-                speedInput.value = preferences.speedInputValue;
-            }
-
-            utils.log('User preferences loaded:', preferences);
+        if (preferences && preferences.speed) {
+            updateSpeedDisplays(preferences.speed);
+            await setTabSpeed(tabId, preferences.speed);
         }
     } catch (error) {
-        utils.log('Error loading preferences:', error);
+        console.error('Error loading preferences:', error);
     }
 }
 
-// setSpeed 함수 개선
+// setSpeed 함수 업데이트
 async function setSpeed(speed) {
-	utils.log('Setting speed:', speed);
-	if (!utils.isValidSpeed(speed)) {
-		utils.log('Invalid speed value:', speed);
-		return;
-	}
+    if (!utils.isValidSpeed(speed)) {
+        return;
+    }
 
-	try {
-		const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-		const tab = tabs[0];
+    try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        const tab = tabs[0];
 
-		if (!tab?.id) {
-			throw new Error('No active tab found');
-		}
+        if (!tab?.id || !tab.url?.startsWith('http')) {
+            return;
+        }
 
-		// 지원되지 않는 URL 체크 (chrome://, about:, file:// 등)
-		if (!tab.url?.startsWith('http')) {
-			utils.log('Unsupported URL:', tab.url);
-			return;
-		}
-
-		try {
-			const response = await sendMessageToTab(tab.id, {
-				action: 'setSpeed',
-				speed: parseFloat(speed),
-			});
-
-			if (response?.success) {
-				updateSpeedDisplays(response.speed);
-				currentVideoSpeed = response.speed;
-				utils.log('Speed update successful:', response.speed);
-			} else if (response?.error) {
-				utils.log('Error from content script:', response.error);
-			}
-		} catch (error) {
-			utils.log(
-				'Error sending message, attempting to reinject content script...'
-			);
-
-			try {
-				await chrome.scripting.executeScript({
-					target: { tabId: tab.id },
-					files: ['content.js'],
-				});
-
-				// 스크립트 로드 시간 확보
-				await new Promise((resolve) => setTimeout(resolve, 100));
-
-				const response = await sendMessageToTab(tab.id, {
-					action: 'setSpeed',
-					speed: parseFloat(speed),
-				});
-
-				if (response?.success) {
-					updateSpeedDisplays(response.speed);
-					currentVideoSpeed = response.speed;
-					utils.log(
-						'Speed update successful after reinjection:',
-						response.speed
-					);
-				} else if (response?.error) {
-					utils.log(
-						'Error from content script after reinjection:',
-						response.error
-					);
-				}
-			} catch (reinjectError) {
-				utils.log('Failed to reinject content script:', reinjectError);
-			}
-		}
-	} catch (error) {
-		utils.log('Error setting speed:', error);
-		updateSpeedDisplays(currentVideoSpeed);
-	}
-
-    // 속도 변경 후 설정 저장
-    await saveUserPreferences();
+        const success = await setTabSpeed(tab.id, speed);
+        if (success) {
+            updateSpeedDisplays(speed);
+            await saveUserPreferences(tab.id, speed);
+        }
+    } catch (error) {
+        console.error('Error in setSpeed:', error);
+    }
 }
 
-// 현재 속도 가져오기 함수 개선
+// getCurrentSpeed 함수 업데이트
 async function getCurrentSpeed() {
-	try {
-		const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-		const tab = tabs[0];
+    try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        const tab = tabs[0];
 
-		if (
-			!tab?.id ||
-			!tab.url ||
-			tab.url.startsWith('chrome://') ||
-			tab.url.startsWith('edge://') ||
-			tab.url.startsWith('file://')
-		) {
-			utils.log('Invalid or unsupported page:', tab?.url);
-			return { speed: currentVideoSpeed };
-		}
+        if (!tab?.id || !tab.url?.startsWith('http')) {
+            return { speed: 1.0 };
+        }
 
-		try {
-			const response = await sendMessageToTab(tab.id, { action: 'getSpeed' });
-
-			if (response?.speed !== undefined) {
-				updateSpeedDisplays(response.speed);
-				currentVideoSpeed = response.speed;
-				return response;
-			}
-
-			return { speed: currentVideoSpeed };
-		} catch (error) {
-			utils.log(
-				'Error getting speed, attempting to reinject content script...'
-			);
-
-			try {
-				await chrome.scripting.executeScript({
-					target: { tabId: tab.id },
-					files: ['content.js'],
-				});
-
-				// 스크립트 로드 시간 확보
-				await new Promise((resolve) => setTimeout(resolve, 100));
-
-				const response = await sendMessageToTab(tab.id, { action: 'getSpeed' });
-
-				if (response?.speed !== undefined) {
-					updateSpeedDisplays(response.speed);
-					currentVideoSpeed = response.speed;
-					return response;
-				}
-			} catch (reinjectError) {
-				utils.log('Failed to reinject content script:', reinjectError);
-			}
-
-			return { speed: currentVideoSpeed };
-		}
-	} catch (error) {
-		utils.log('Speed check error:', error.message);
-		return { speed: currentVideoSpeed };
-	}
+        const speed = await getTabSpeed(tab.id);
+        updateSpeedDisplays(speed);
+        return { speed };
+    } catch (error) {
+        console.error('Speed check error:', error);
+        return { speed: 1.0 };
+    }
 }
 
 // 초기화 함수 개선 - 버튼 동작 문제 해결
@@ -237,7 +158,10 @@ async function initializeApp() {
 		utils.log('Initializing app...');
 
         // 저장된 사용자 설정 로드
-        await loadUserPreferences();
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id) {
+            await loadUserPreferences(tab.id);
+        }
 
 		// 애니메이션 효과 추가
 		addAnimationEffects();
@@ -656,6 +580,21 @@ async function initializeShortcuts() {
 // DOM이 로드된 후 초기화 실행
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id) {
+            await loadUserPreferences(tab.id);
+            const speed = await getTabSpeed(tab.id);
+            updateSpeedDisplays(speed);
+
+            // 주기적으로 현재 탭의 속도 업데이트
+            setInterval(async () => {
+                const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                if (currentTab?.id === tab.id) {
+                    const currentSpeed = await getTabSpeed(tab.id);
+                    updateSpeedDisplays(currentSpeed);
+                }
+            }, 500);
+        }
         await Promise.all([
             initializeApp(),
             initializeShortcuts()
@@ -665,8 +604,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// 팝업 생성 함수
-function createSpeedInputPopup() {
+// 팝업 생성 함수 업데이트
+async function createSpeedInputPopup() {
     const popup = document.createElement('div');
     popup.className = 'speed-popup';
 
@@ -674,6 +613,13 @@ function createSpeedInputPopup() {
     input.type = 'text';
     input.className = 'speed-popup-input';
     input.placeholder = '0.1 ~ 16';
+
+    // 현재 탭의 속도로 초기화
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+        const speed = await getTabSpeed(tab.id);
+        input.value = speed.toFixed(2);
+    }
 
     popup.appendChild(input);
     return { popup, input };
@@ -686,7 +632,7 @@ document.addEventListener('keydown', async (e) => {
         e.preventDefault();
         e.stopPropagation();
 
-        const { popup, input } = createSpeedInputPopup();
+        const { popup, input } = await createSpeedInputPopup();
         document.body.appendChild(popup);
         
         input.focus();
@@ -697,7 +643,12 @@ document.addEventListener('keydown', async (e) => {
                 e.preventDefault();
                 const speed = parseFloat(input.value);
                 if (!isNaN(speed) && speed >= 0.1 && speed <= 16) {
-                    await setSpeed(speed);
+                    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                    if (tab?.id) {
+                        await setTabSpeed(tab.id, speed);
+                        updateSpeedDisplays(speed);
+                        await saveUserPreferences(tab.id, speed);
+                    }
                     popup.remove();
                     window.close();
                 } else {
@@ -724,40 +675,4 @@ document.addEventListener('keydown', async (e) => {
             document.addEventListener('click', handleOutsideClick);
         }, 100);
     }
-});
-
-document.addEventListener('DOMContentLoaded', async () => {
-    const currentSpeedElement = document.getElementById('current-speed');
-    const speedInput = document.querySelector('.speed-input input');
-    
-    // 현재 탭의 비디오 속도를 가져오는 함수
-    async function getCurrentSpeed() {
-        try {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (!tab?.id) return 1.0;
-
-            const response = await chrome.tabs.sendMessage(tab.id, { action: 'getCurrentSpeed' });
-            return response?.speed || 1.0;
-        } catch (error) {
-            console.error('Error getting current speed:', error);
-            return 1.0;
-        }
-    }
-
-    // 현재 속도를 화면에 표시하는 함수
-    async function updateSpeedDisplay() {
-        const speed = await getCurrentSpeed();
-        if (currentSpeedElement) {
-            currentSpeedElement.textContent = speed.toFixed(2);
-        }
-        if (speedInput) {
-            speedInput.value = speed.toFixed(2);
-        }
-    }
-
-    // 페이지 로드시 초기 속도 표시
-    await updateSpeedDisplay();
-
-    // 주기적으로 속도 업데이트 (0.5초마다)
-    setInterval(updateSpeedDisplay, 500);
 });
