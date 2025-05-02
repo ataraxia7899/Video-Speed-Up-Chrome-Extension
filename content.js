@@ -318,20 +318,11 @@
           }
 
           const videos = document.getElementsByTagName('video');
-          const applications = await Promise.all(
-            Array.from(videos).map(video => applySpeedToVideo(video, speed))
-          );
+          Array.from(videos).forEach(video => {
+            video.playbackRate = speed;
+          });
 
-          settingApplied = applications.some(success => success);
-          
-          if (!settingApplied) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            const retryApplications = await Promise.all(
-              Array.from(videos).map(video => applySpeedToVideo(video, speed))
-            );
-            settingApplied = retryApplications.some(success => success);
-          }
-
+          settingApplied = true;
           break;
         }
       }
@@ -339,9 +330,9 @@
       // 매칭되는 패턴이 없을 경우 기본 속도 적용
       if (!settingApplied) {
         const videos = document.getElementsByTagName('video');
-        await Promise.all(
-          Array.from(videos).map(video => applySpeedToVideo(video, state.youtubeConfig.defaultSpeed))
-        );
+        Array.from(videos).forEach(video => {
+          video.playbackRate = state.youtubeConfig.defaultSpeed;
+        });
         state.currentSpeed = state.youtubeConfig.defaultSpeed;
       }
 
