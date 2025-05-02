@@ -11,6 +11,70 @@ const utils = {
 	},
 };
 
+// 스토리지 캐시 시스템
+const StorageManager = {
+    cache: new Map(),
+    timestamps: new Map(),
+    TTL: 5000, // 5초
+    pendingRequests: new Map(),
+
+    async get(key) {
+        const now = Date.now();
+
+        // 캐시 히트 확인
+        if (this.cache.has(key)) {
+            const timestamp = this.timestamps.get(key);
+            if (now - timestamp < this.TTL) {
+                return this.cache.get(key);
+            }
+            this.cache.delete(key);
+            this.timestamps.delete(key);
+        }
+
+        // 진행 중인 요청이 있다면 해당 Promise 반환
+        if (this.pendingRequests.has(key)) {
+            return this.pendingRequests.get(key);
+        }
+
+        // 새로운 요청 생성
+        const promise = new Promise((resolve) => {
+            chrome.storage.sync.get(key, (result) => {
+                const value = result[key];
+                this.cache.set(key, value);
+                this.timestamps.set(key, now);
+                this.pendingRequests.delete(key);
+                resolve(value);
+            });
+        });
+
+        this.pendingRequests.set(key, promise);
+        return promise;
+    },
+
+    async set(key, value) {
+        const now = Date.now();
+        
+        this.cache.set(key, value);
+        this.timestamps.set(key, now);
+
+        return new Promise((resolve) => {
+            chrome.storage.sync.set({ [key]: value }, resolve);
+        });
+    },
+
+    clear(key) {
+        this.cache.delete(key);
+        this.timestamps.delete(key);
+        this.pendingRequests.delete(key);
+    },
+
+    clearAll() {
+        this.cache.clear();
+        this.timestamps.clear();
+        this.pendingRequests.clear();
+    }
+};
+
 // 핵심 유틸리티 함수들
 function updateSpeedDisplays(speed) {
 	try {
@@ -346,142 +410,143 @@ function initializeSiteSettings() {
 }
 
 // 사이트 추가 핸들러 함수
-function handleAddSite() {
-	const pattern = document.getElementById('site-url')?.value.trim();
-	const speed = parseFloat(document.getElementById('site-speed')?.value);
+async function handleAddSite() {
+    const pattern = document.getElementById('site-url')?.value.trim();
+    const speed = parseFloat(document.getElementById('site-speed')?.value);
 
-	if (!pattern) {
-		alert(chrome.i18n.getMessage('urlRequired') || 'URL 패턴을 입력해주세요.');
-		return;
-	}
+    if (!pattern) {
+        alert(chrome.i18n.getMessage('urlRequired'));
+        return;
+    }
 
-	if (!utils.isValidSpeed(speed)) {
-		alert(
-			chrome.i18n.getMessage('invalidSpeed') ||
-				'유효한 속도를 입력해주세요 (0.1 ~ 16).'
-		);
-		return;
-	}
+    if (!utils.isValidSpeed(speed)) {
+        alert(chrome.i18n.getMessage('invalidSpeed'));
+        return;
+    }
 
-	chrome.storage.sync.get(['siteSettings'], (result) => {
-		const siteSettings = result.siteSettings || {};
-		siteSettings[pattern] = {
-			speed: speed,
-			enabled: true,
-		};
+    try {
+        const siteSettings = await StorageManager.get('siteSettings') || {};
+        siteSettings[pattern] = {
+            speed: speed,
+            enabled: true,
+        };
 
-		chrome.storage.sync.set({ siteSettings }, () => {
-			loadSiteList();
-			document.getElementById('site-url').value = '';
-			document.getElementById('site-speed').value = '1.0';
-		});
-	});
+        await StorageManager.set('siteSettings', siteSettings);
+        
+        loadSiteList();
+        document.getElementById('site-url').value = '';
+        document.getElementById('site-speed').value = '1.0';
+    } catch (error) {
+        console.error('Error adding site:', error);
+    }
 }
 
 // 사이트 목록 클릭 이벤트 핸들러
-function handleSiteListClick(e) {
-	const target = e.target;
+async function handleSiteListClick(e) {
+    const target = e.target;
 
-	if (target.classList.contains('delete-site')) {
-		const pattern = target.dataset.pattern;
-		const siteItem = target.closest('.site-item');
+    if (target.classList.contains('delete-site')) {
+        const pattern = target.dataset.pattern;
+        const siteItem = target.closest('.site-item');
 
-		if (!pattern || !siteItem) return;
+        if (!pattern || !siteItem) return;
 
-		siteItem.classList.remove('adding');
-		siteItem.classList.add('removing');
+        siteItem.classList.remove('adding');
+        siteItem.classList.add('removing');
 
-		setTimeout(() => {
-			chrome.storage.sync.get(['siteSettings'], (result) => {
-				const siteSettings = result.siteSettings || {};
-				delete siteSettings[pattern];
-				chrome.storage.sync.set({ siteSettings }, loadSiteList);
-			});
-		}, 300);
-	}
+        try {
+            const siteSettings = await StorageManager.get('siteSettings') || {};
+            delete siteSettings[pattern];
+            await StorageManager.set('siteSettings', siteSettings);
+            
+            setTimeout(() => {
+                loadSiteList();
+            }, 300);
+        } catch (error) {
+            console.error('Error deleting site:', error);
+            siteItem.classList.remove('removing');
+        }
+    }
 }
 
-// 사이트 목록 로드
-function loadSiteList() {
-	const siteList = document.getElementById('site-list');
-	if (!siteList) return;
+// 사이트 목록 로드 함수
+async function loadSiteList() {
+    const siteList = document.getElementById('site-list');
+    if (!siteList) return;
 
-	chrome.storage.sync.get(['siteSettings'], (result) => {
-		siteList.innerHTML = '';
+    try {
+        const siteSettings = await StorageManager.get('siteSettings') || {};
+        siteList.innerHTML = '';
 
-		if (result.siteSettings && Object.keys(result.siteSettings).length > 0) {
-			Object.entries(result.siteSettings).forEach(
-				([pattern, setting], index) => {
-					const speed = typeof setting === 'object' ? setting.speed : setting;
-					const isEnabled =
-						typeof setting === 'object' ? setting.enabled : true;
+        if (Object.keys(siteSettings).length > 0) {
+            Object.entries(siteSettings).forEach(([pattern, setting], index) => {
+                const speed = typeof setting === 'object' ? setting.speed : setting;
+                const isEnabled = typeof setting === 'object' ? setting.enabled : true;
 
-					const div = document.createElement('div');
-					div.className = 'site-item adding';
-					div.dataset.pattern = pattern; // 패턴 데이터 속성 추가
-					div.innerHTML = `
+                const div = document.createElement('div');
+                div.className = 'site-item adding';
+                div.dataset.pattern = pattern;
+                div.innerHTML = `
                     <div class="site-info">
                         <label class="toggle-switch">
-                            <input type="checkbox" class="toggle-input" id="toggle-${index}" ${
-						isEnabled ? 'checked' : ''
-					}>
+                            <input type="checkbox" class="toggle-input" id="toggle-${index}" ${isEnabled ? 'checked' : ''}>
                             <span class="toggle-label"></span>
                         </label>
                         <span class="site-pattern">${pattern} (${speed}x)</span>
                     </div>
-                    <button class="delete-site" data-pattern="${pattern}">${chrome.i18n.getMessage(
-						'delete'
-					)}</button>
+                    <button class="delete-site" data-pattern="${pattern}">${chrome.i18n.getMessage('delete')}</button>
                 `;
 
-					siteList.appendChild(div);
+                siteList.appendChild(div);
 
-					// 토글 이벤트 리스너
-					const toggleInput = div.querySelector(`#toggle-${index}`);
-					toggleInput.addEventListener('change', (e) => {
-						const isChecked = e.target.checked;
-						updateSiteSettings(pattern, speed, isChecked);
-					});
+                // 토글 이벤트 리스너
+                const toggleInput = div.querySelector(`#toggle-${index}`);
+                toggleInput.addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    updateSiteSettings(pattern, speed, isChecked);
+                });
 
-					setTimeout(() => {
-						div.style.animationDelay = `${index * 0.05}s`;
-					}, 0);
-				}
-			);
-		} else {
-			const emptyMessage = document.createElement('div');
-			emptyMessage.className = 'empty-message';
-			emptyMessage.textContent = chrome.i18n.getMessage('noSites');
-			emptyMessage.style.textAlign = 'center';
-			emptyMessage.style.color = '#64748b';
-			emptyMessage.style.padding = '10px';
-			siteList.appendChild(emptyMessage);
-		}
-	});
+                setTimeout(() => {
+                    div.style.animationDelay = `${index * 0.05}s`;
+                }, 0);
+            });
+        } else {
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'empty-message';
+            emptyMessage.textContent = chrome.i18n.getMessage('noSites');
+            emptyMessage.style.textAlign = 'center';
+            emptyMessage.style.color = '#64748b';
+            emptyMessage.style.padding = '10px';
+            siteList.appendChild(emptyMessage);
+        }
+    } catch (error) {
+        console.error('Error loading site list:', error);
+    }
 }
 
-function updateSiteSettings(pattern, speed, enabled) {
-	chrome.storage.sync.get(['siteSettings'], (result) => {
-		const siteSettings = result.siteSettings || {};
-		siteSettings[pattern] = {
-			speed: speed,
-			enabled: enabled,
-		};
+// 사이트 설정 업데이트 함수
+async function updateSiteSettings(pattern, speed, enabled) {
+    try {
+        const siteSettings = await StorageManager.get('siteSettings') || {};
+        siteSettings[pattern] = {
+            speed: speed,
+            enabled: enabled,
+        };
 
-		chrome.storage.sync.set({ siteSettings }, () => {
-			// 토글 레이블 찾기 개선
-			const siteItem = document.querySelector(
-				`.site-item[data-pattern="${pattern}"]`
-			);
-			if (siteItem) {
-				const toggleLabel = siteItem.querySelector('.toggle-label');
-				if (toggleLabel) {
-					toggleLabel.classList.add('toggling');
-					setTimeout(() => toggleLabel.classList.remove('toggling'), 300);
-				}
-			}
-		});
-	});
+        await StorageManager.set('siteSettings', siteSettings);
+
+        // 토글 레이블 애니메이션
+        const siteItem = document.querySelector(`.site-item[data-pattern="${pattern}"]`);
+        if (siteItem) {
+            const toggleLabel = siteItem.querySelector('.toggle-label');
+            if (toggleLabel) {
+                toggleLabel.classList.add('toggling');
+                setTimeout(() => toggleLabel.classList.remove('toggling'), 300);
+            }
+        }
+    } catch (error) {
+        console.error('Error updating site settings:', error);
+    }
 }
 
 async function saveShortcuts() {
@@ -499,26 +564,27 @@ async function saveShortcuts() {
 	}
 }
 
+// loadSavedSettings 함수 업데이트
 async function loadSavedSettings() {
-	try {
-		const result = await new Promise((resolve) => {
-			chrome.storage.sync.get(['speedPopupShortcut'], resolve);
-		});
+    try {
+        const settings = await StorageManager.get('settings');
+        
+        // 기본값 설정
+        const defaults = {
+            speedPopupShortcut: 'Ctrl + .',
+        };
 
-		// 기본값 설정
-		const defaults = {
-			speedPopupShortcut: 'Ctrl + .',
-		};
+        // 설정이 없으면 기본값 저장
+        if (!settings) {
+            await StorageManager.set('settings', defaults);
+            return defaults;
+        }
 
-		const settings = {
-			speedPopupShortcut:
-				result.speedPopupShortcut || defaults.speedPopupShortcut,
-		};
-
-		utils.log('Settings loaded:', settings);
-	} catch (error) {
-		utils.log('Error loading settings:', error);
-	}
+        return settings;
+    } catch (error) {
+        utils.log('Error loading settings:', error);
+        return null;
+    }
 }
 
 // HTML 요소에 i18n 메시지 적용하는 함수 추가
@@ -577,7 +643,7 @@ async function initializeShortcuts() {
     }
 }
 
-// DOM이 로드된 후 초기화 실행
+// DOM이 로드된 후 초기화 함수
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -587,18 +653,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateSpeedDisplays(speed);
 
             // 주기적으로 현재 탭의 속도 업데이트
-            setInterval(async () => {
+            const updateInterval = setInterval(async () => {
                 const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
                 if (currentTab?.id === tab.id) {
                     const currentSpeed = await getTabSpeed(tab.id);
                     updateSpeedDisplays(currentSpeed);
+                } else {
+                    clearInterval(updateInterval);
                 }
             }, 500);
         }
+
         await Promise.all([
             initializeApp(),
             initializeShortcuts()
         ]);
+
+        // 팝업 닫힐 때 정리
+        window.addEventListener('unload', () => {
+            StorageManager.clearAll();
+        });
     } catch (error) {
         console.error('초기화 오류:', error);
     }
