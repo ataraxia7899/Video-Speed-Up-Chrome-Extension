@@ -56,6 +56,103 @@
 			errorThreshold: 5000,
 			maxErrorsInThreshold: 3,
 		},
+		storageCache: {
+			cache: new Map(),
+			timestamps: new Map(),
+			TTL: 5000, // 캐시 유효 시간 (5초)
+			pendingRequests: new Map()
+		},
+	};
+
+	// 스토리지 캐시 관리 함수들
+	const StorageCache = {
+		async get(key) {
+			const cache = BackgroundController.storageCache;
+			const now = Date.now();
+
+			// 캐시 히트 확인
+			if (cache.cache.has(key)) {
+				const timestamp = cache.timestamps.get(key);
+				if (now - timestamp < cache.TTL) {
+					return cache.cache.get(key);
+				}
+				// TTL 만료된 캐시 삭제
+				cache.cache.delete(key);
+				cache.timestamps.delete(key);
+			}
+
+			// 진행 중인 요청이 있다면 해당 Promise 반환
+			if (cache.pendingRequests.has(key)) {
+				return cache.pendingRequests.get(key);
+			}
+
+			// 새로운 요청 생성
+			const promise = new Promise((resolve) => {
+				chrome.storage.sync.get(key, (result) => {
+					const value = result[key];
+					cache.cache.set(key, value);
+					cache.timestamps.set(key, now);
+					cache.pendingRequests.delete(key);
+					resolve(value);
+				});
+			});
+
+			cache.pendingRequests.set(key, promise);
+			return promise;
+		},
+
+		async set(key, value) {
+			const cache = BackgroundController.storageCache;
+			const now = Date.now();
+
+			cache.cache.set(key, value);
+			cache.timestamps.set(key, now);
+
+			return new Promise((resolve) => {
+				chrome.storage.sync.set({ [key]: value }, resolve);
+			});
+		},
+
+		clear(key) {
+			const cache = BackgroundController.storageCache;
+			cache.cache.delete(key);
+			cache.timestamps.delete(key);
+			cache.pendingRequests.delete(key);
+		},
+
+		clearAll() {
+			const cache = BackgroundController.storageCache;
+			cache.cache.clear();
+			cache.timestamps.clear();
+			cache.pendingRequests.clear();
+		}
+	};
+
+	// 기존 tabSpeedStates에 TTL 추가
+	const tabSpeedStates = {
+		speeds: new Map(),
+		timestamps: new Map(),
+		TTL: 5000, // 5초
+		
+		set(tabId, speed) {
+			this.speeds.set(tabId, speed);
+			this.timestamps.set(tabId, Date.now());
+		},
+		
+		get(tabId) {
+			const timestamp = this.timestamps.get(tabId);
+			if (timestamp && Date.now() - timestamp < this.TTL) {
+				return this.speeds.get(tabId);
+			}
+			this.speeds.delete(tabId);
+			this.timestamps.delete(tabId);
+			return null;
+		},
+		
+		clear(tabId) {
+			this.speeds.delete(tabId);
+			this.timestamps.delete(tabId);
+		}
 	};
 
 	function log(...args) {
@@ -396,6 +493,10 @@
 		}
 
 		resetTabState(tabId);
+
+		// 탭 관련 캐시 정리
+		tabSpeedStates.clear(tabId);
+		StorageCache.clear(`tab_${tabId}_speed`);
 	}
 
 	// 탭 제거 핸들러 개선
@@ -555,6 +656,9 @@
 		} catch (error) {
 			throttledLog('error', 'Error reinjecting content scripts:', error);
 		}
+
+		// 캐시 초기화
+		StorageCache.clearAll();
 	});
 
 	// 단축키 명령어 처리 개선
@@ -650,30 +754,30 @@
 		]);
 	}
 
-	// 탭별 배속 상태를 저장할 Map 추가
-	const tabSpeedStates = new Map();
-
-	// 탭별 배속 저장 함수
+	// 탭별 배속 저장 함수 업데이트
 	async function saveTabSpeed(tabId, speed) {
 		if (!tabId || typeof speed !== 'number') return;
 		
 		tabSpeedStates.set(tabId, speed);
-		await chrome.storage.local.set({
-			[`tab_${tabId}_speed`]: {
-				speed,
-				timestamp: Date.now()
-			}
+		await StorageCache.set(`tab_${tabId}_speed`, {
+			speed,
+			timestamp: Date.now()
 		});
 	}
 
-	// 탭별 배속 로드 함수
+	// 탭별 배속 로드 함수 업데이트
 	async function loadTabSpeed(tabId) {
 		if (!tabId) return null;
 		
 		try {
-			const result = await chrome.storage.local.get(`tab_${tabId}_speed`);
-			const savedData = result[`tab_${tabId}_speed`];
-			
+			// 먼저 메모리 캐시 확인
+			const cachedSpeed = tabSpeedStates.get(tabId);
+			if (cachedSpeed !== null) {
+				return cachedSpeed;
+			}
+
+			// 스토리지 캐시 확인
+			const savedData = await StorageCache.get(`tab_${tabId}_speed`);
 			if (savedData && typeof savedData.speed === 'number') {
 				tabSpeedStates.set(tabId, savedData.speed);
 				return savedData.speed;
