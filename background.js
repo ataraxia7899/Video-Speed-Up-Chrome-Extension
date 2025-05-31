@@ -60,9 +60,12 @@
 			cache: new Map(),
 			timestamps: new Map(),
 			TTL: 5000, // 캐시 유효 시간 (5초)
-			pendingRequests: new Map()
+			pendingRequests: new Map(),
 		},
 	};
+
+	// 전역 상태 관리 객체에 추가
+	const injectionStates = new Map(); // tabId -> { isInjecting: boolean, isInjected: boolean }
 
 	// 스토리지 캐시 관리 함수들
 	const StorageCache = {
@@ -125,7 +128,7 @@
 			cache.cache.clear();
 			cache.timestamps.clear();
 			cache.pendingRequests.clear();
-		}
+		},
 	};
 
 	// 기존 tabSpeedStates에 TTL 추가
@@ -133,12 +136,12 @@
 		speeds: new Map(),
 		timestamps: new Map(),
 		TTL: 5000, // 5초
-		
+
 		set(tabId, speed) {
 			this.speeds.set(tabId, speed);
 			this.timestamps.set(tabId, Date.now());
 		},
-		
+
 		get(tabId) {
 			const timestamp = this.timestamps.get(tabId);
 			if (timestamp && Date.now() - timestamp < this.TTL) {
@@ -148,11 +151,11 @@
 			this.timestamps.delete(tabId);
 			return null;
 		},
-		
+
 		clear(tabId) {
 			this.speeds.delete(tabId);
 			this.timestamps.delete(tabId);
-		}
+		},
 	};
 
 	function log(...args) {
@@ -221,39 +224,51 @@
 
 	// Content Script 주입 함수 개선
 	async function injectContentScript(tabId, url) {
+		// 안전 주입 함수만 사용
+		return await safeInjectContentScript(tabId, url);
+	}
+
+	// 안전 주입 함수
+	async function safeInjectContentScript(tabId, url) {
+		// 이미 주입 중이거나 완료된 경우 스킵
+		const state = injectionStates.get(tabId) || {
+			isInjecting: false,
+			isInjected: false,
+		};
+		if (state.isInjecting || state.isInjected) {
+			return state.isInjected;
+		}
+		state.isInjecting = true;
+		injectionStates.set(tabId, state);
 		try {
-			if (!url || url.startsWith('chrome://') || url.startsWith('edge://')) {
-				return false;
+			// 기존 content script 확인
+			const isAlreadyInjected = await checkContentScriptExists(tabId);
+			if (isAlreadyInjected) {
+				state.isInjected = true;
+				state.isInjecting = false;
+				return true;
 			}
-
-			try {
-				await chrome.tabs.sendMessage(tabId, { action: 'cleanup' });
-			} catch {}
-
-			await new Promise(resolve => setTimeout(resolve, 50));
-
 			await chrome.scripting.executeScript({
 				target: { tabId },
-				files: ['content.js']
+				files: ['content.js'],
 			});
-
-			const response = await new Promise((resolve) => {
-				const checkScript = () => {
-					chrome.tabs.sendMessage(tabId, { action: 'ping' }, (response) => {
-						if (chrome.runtime.lastError) {
-							setTimeout(checkScript, 50);
-						} else {
-							resolve(response?.success);
-						}
-					});
-				};
-				checkScript();
-				setTimeout(() => resolve(false), 2000);
-			});
-
-			return response === true;
+			state.isInjected = true;
+			return true;
 		} catch (error) {
-			throttledLog('error', `Failed to inject content script in tab ${tabId}:`, error);
+			console.error(`Failed to inject content script in tab ${tabId}:`, error);
+			state.isInjected = false;
+			return false;
+		} finally {
+			state.isInjecting = false;
+			injectionStates.set(tabId, state);
+		}
+	}
+
+	async function checkContentScriptExists(tabId) {
+		try {
+			const response = await chrome.tabs.sendMessage(tabId, { action: 'ping' });
+			return response?.success === true;
+		} catch {
 			return false;
 		}
 	}
@@ -294,66 +309,8 @@
 
 	// Content Script 재주입 최적화
 	async function reinjectContentScript(tabId) {
-		const pageState = BackgroundController.pageStates.get(tabId) || {
-			injectionAttempts: 0,
-			lastInjectionTime: 0,
-			recoveryTimeout: null,
-		};
-
-		try {
-			const now = Date.now();
-			if (
-				now - pageState.lastInjectionTime <
-				BackgroundController.youtubeConfig.MIN_REINJECT_INTERVAL
-			) {
-				return;
-			}
-
-			if (pageState.recoveryTimeout) {
-				clearTimeout(pageState.recoveryTimeout);
-				pageState.recoveryTimeout = null;
-			}
-
-			await chrome.scripting.executeScript({
-				target: { tabId },
-				files: ['content.js'],
-			});
-
-			pageState.injectionAttempts = 0;
-			pageState.lastInjectionTime = now;
-			BackgroundController.pageStates.set(tabId, pageState);
-
-			return true;
-		} catch (error) {
-			throttledLog(
-				'error',
-				`Content script injection failed for tab ${tabId}:`,
-				error
-			);
-
-			pageState.injectionAttempts++;
-			if (
-				pageState.injectionAttempts <
-				BackgroundController.recoveryConfig.MAX_ATTEMPTS
-			) {
-				const delay = Math.min(
-					BackgroundController.recoveryConfig.BASE_DELAY *
-						Math.pow(1.5, pageState.injectionAttempts),
-					BackgroundController.recoveryConfig.MAX_DELAY
-				);
-
-				pageState.recoveryTimeout = setTimeout(() => {
-					pageState.recoveryTimeout = null;
-					queueContentScriptInjection(tabId).catch((error) =>
-						throttledLog('error', 'Queued injection failed:', error)
-					);
-				}, delay);
-			} else {
-				resetTabState(tabId);
-			}
-
-			return false;
-		}
+		const tab = await chrome.tabs.get(tabId);
+		return await safeInjectContentScript(tabId, tab.url);
 	}
 
 	// 탭 컨텍스트 검증 함수 추가
@@ -501,24 +458,26 @@
 
 	// 탭 제거 핸들러 개선
 	chrome.tabs.onRemoved.addListener((tabId) => {
+		injectionStates.delete(tabId);
 		cleanupTab(tabId);
 	});
 
 	// 탭 업데이트 핸들러 개선
 	chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-		if (!tab?.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) {
+		if (
+			!tab?.url ||
+			tab.url.startsWith('chrome://') ||
+			tab.url.startsWith('edge://')
+		) {
 			return;
 		}
-
 		if (changeInfo.status === 'complete') {
 			try {
+				// 페이지 변경 시 주입 상태 초기화
+				injectionStates.delete(tabId);
 				cleanupTab(tabId);
-				await chrome.scripting.executeScript({
-					target: { tabId },
-					files: ['content.js'],
-				});
-				// content script 주입 후 저장된 배속 적용
-				await new Promise(resolve => setTimeout(resolve, 500)); // 스크립트 초기화 대기
+				await safeInjectContentScript(tabId, tab.url);
+				await new Promise((resolve) => setTimeout(resolve, 500));
 				await applyTabSpeed(tabId);
 			} catch (error) {
 				throttledLog('error', 'Tab update handler error:', error);
@@ -535,8 +494,8 @@
 
 			try {
 				cleanupTab(tabId);
-				await new Promise(resolve => setTimeout(resolve, 500));
-				await injectContentScript(tabId, url);
+				await new Promise((resolve) => setTimeout(resolve, 500));
+				await safeInjectContentScript(tabId, url);
 			} catch (error) {
 				throttledLog('error', 'Navigation handler error:', error);
 			}
@@ -557,7 +516,7 @@
 						try {
 							await chrome.scripting.executeScript({
 								target: { tabId },
-								files: ['content.js']
+								files: ['content.js'],
 							});
 							await applyTabSpeed(tabId);
 							return { success: true };
@@ -597,16 +556,17 @@
 	async function tryReconnect(tabId) {
 		try {
 			const tab = await chrome.tabs.get(tabId);
-			if (!tab || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) {
+			if (
+				!tab ||
+				!tab.url ||
+				tab.url.startsWith('chrome://') ||
+				tab.url.startsWith('edge://')
+			) {
 				return;
 			}
-
+			injectionStates.delete(tabId); // 주입 상태 초기화
 			cleanupTab(tabId);
-
-			await chrome.scripting.executeScript({
-				target: { tabId },
-				files: ['content.js']
-			});
+			await safeInjectContentScript(tabId, tab.url);
 		} catch (error) {
 			throttledLog('error', `Failed to reconnect to tab ${tabId}:`, error);
 		}
@@ -643,13 +603,13 @@
 
 		try {
 			const tabs = await chrome.tabs.query({
-				url: ['http://*/*', 'https://*/*']
+				url: ['http://*/*', 'https://*/*'],
 			});
 
 			for (const tab of tabs) {
 				if (tab.id) {
 					cleanupTab(tab.id);
-					await new Promise(resolve => setTimeout(resolve, 100));
+					await new Promise((resolve) => setTimeout(resolve, 100));
 					await injectContentScript(tab.id, tab.url);
 				}
 			}
@@ -671,7 +631,12 @@
 				currentWindow: true,
 			});
 
-			if (!tab?.id || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) {
+			if (
+				!tab?.id ||
+				!tab.url ||
+				tab.url.startsWith('chrome://') ||
+				tab.url.startsWith('edge://')
+			) {
 				return;
 			}
 
@@ -682,19 +647,21 @@
 			const sendToggleMessage = async () => {
 				try {
 					const scriptInjected = await validateContentScript(tab.id);
-					
+
 					if (!scriptInjected) {
 						await injectContentScript(tab.id, tab.url);
-						await new Promise(resolve => setTimeout(resolve, 100));
+						await new Promise((resolve) => setTimeout(resolve, 100));
 					}
 
 					return await chrome.tabs.sendMessage(tab.id, {
-						action: 'toggleSpeedInput'
+						action: 'toggleSpeedInput',
 					});
 				} catch (error) {
 					if (retryCount < maxRetries) {
 						retryCount++;
-						await new Promise(resolve => setTimeout(resolve, retryDelay * retryCount));
+						await new Promise((resolve) =>
+							setTimeout(resolve, retryDelay * retryCount)
+						);
 						return sendToggleMessage();
 					}
 					throw error;
@@ -757,18 +724,18 @@
 	// 탭별 배속 저장 함수 업데이트
 	async function saveTabSpeed(tabId, speed) {
 		if (!tabId || typeof speed !== 'number') return;
-		
+
 		tabSpeedStates.set(tabId, speed);
 		await StorageCache.set(`tab_${tabId}_speed`, {
 			speed,
-			timestamp: Date.now()
+			timestamp: Date.now(),
 		});
 	}
 
 	// 탭별 배속 로드 함수 업데이트
 	async function loadTabSpeed(tabId) {
 		if (!tabId) return null;
-		
+
 		try {
 			// 먼저 메모리 캐시 확인
 			const cachedSpeed = tabSpeedStates.get(tabId);
@@ -795,7 +762,7 @@
 			try {
 				await chrome.tabs.sendMessage(tabId, {
 					action: 'setSpeed',
-					speed: speed
+					speed: speed,
 				});
 			} catch (error) {
 				console.error('Error applying tab speed:', error);
