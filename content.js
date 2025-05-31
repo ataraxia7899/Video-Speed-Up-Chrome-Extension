@@ -281,13 +281,21 @@
 	async function sendMessageWithTimeout(message, timeout) {
 		return Promise.race([
 			new Promise((resolve, reject) => {
-				chrome.runtime.sendMessage(message, (response) => {
-					if (chrome.runtime.lastError) {
-						reject(new Error(chrome.runtime.lastError.message));
-					} else {
-						resolve(response);
-					}
-				});
+				try {
+					chrome.runtime.sendMessage(message, (response) => {
+						if (chrome.runtime.lastError) {
+							// 연결 실패 시 자동 복구 요청
+							chrome.runtime.sendMessage({ action: 'reconnect' });
+							reject(chrome.runtime.lastError);
+						} else {
+							resolve(response);
+						}
+					});
+				} catch (e) {
+					// 연결 실패 시 자동 복구 요청
+					chrome.runtime.sendMessage({ action: 'reconnect' });
+					reject(e);
+				}
 			}),
 			new Promise((_, reject) =>
 				setTimeout(() => reject(new Error('Message timeout')), timeout)
