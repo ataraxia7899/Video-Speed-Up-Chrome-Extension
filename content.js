@@ -521,37 +521,44 @@
 			return false;
 
 		try {
+			let success = false;
 			// YouTube 비디오 처리
 			if (state.youtubeConfig.isYouTube) {
 				if (detectYouTubeShortsPage()) {
-					return await handleYouTubeShortsVideo(speed);
+					success = await handleYouTubeShortsVideo(speed);
+				} else {
+					success = await handleYouTubeVideo(speed);
 				}
-				return await handleYouTubeVideo(speed);
+			} else {
+				// 일반 비디오 처리
+				const applySpeed = () => {
+					video.playbackRate = speed;
+					return Math.abs(video.playbackRate - speed) < 0.01;
+				};
+
+				// 첫 시도
+				if (applySpeed()) {
+					success = true;
+				} else {
+					// 재시도 (최대 3회)
+					let retries = 3;
+					while (retries > 0) {
+						await new Promise((resolve) => setTimeout(resolve, 100));
+						if (applySpeed()) {
+							success = true;
+							break;
+						}
+						retries--;
+					}
+				}
 			}
 
-			// 일반 비디오 처리
-			const applySpeed = () => {
-				video.playbackRate = speed;
-				return Math.abs(video.playbackRate - speed) < 0.01;
-			};
-
-			// 첫 시도
-			if (applySpeed()) {
+			if (success) {
 				state.currentSpeed = speed;
 				state.pendingSpeedUpdate = null;
+				// Send message to background script after successful speed application
+				await chrome.runtime.sendMessage({ action: 'setSpeed', speed: speed });
 				return true;
-			}
-
-			// 재시도 (최대 3회)
-			let retries = 3;
-			while (retries > 0) {
-				await new Promise((resolve) => setTimeout(resolve, 100));
-				if (applySpeed()) {
-					state.currentSpeed = speed;
-					state.pendingSpeedUpdate = null;
-					return true;
-				}
-				retries--;
 			}
 
 			return false;
