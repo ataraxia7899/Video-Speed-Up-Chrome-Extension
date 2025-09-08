@@ -1,17 +1,11 @@
 {
 	"manifest_version": 3,
 	"name": "__MSG_extName__",
-	"version": "1.0.8",
+	"version": "1.0.9",
 	"description": "__MSG_extDescription__",
 	"default_locale": "ko",
-	"permissions": [
-		"storage",
-		"activeTab",
-		"scripting"
-	],
-	"host_permissions": [
-		"*://*/*"
-	],
+	"permissions": ["storage", "activeTab", "scripting"],
+	"host_permissions": ["*://*/*"],
 	"background": {
 		"service_worker": "background.js"
 	},
@@ -39,9 +33,7 @@
 	},
 	"content_scripts": [
 		{
-			"matches": [
-				"*://*/*"
-			],
+			"matches": ["*://*/*"],
 			"js": ["content.js"],
 			"run_at": "document_end"
 		}
