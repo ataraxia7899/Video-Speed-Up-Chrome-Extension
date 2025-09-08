@@ -67,6 +67,28 @@
 	// 전역 상태 관리 객체에 추가
 	const injectionStates = new Map(); // tabId -> { isInjecting: boolean, isInjected: boolean }
 
+	// Injection Lock 관리 함수
+	async function acquireInjectionLock(tabId) {
+		const lock = BackgroundController.injectionLocks.get(tabId);
+		if (lock) {
+			await lock;
+		}
+		let releaseLock;
+		const newLock = new Promise(resolve => { releaseLock = resolve; });
+		BackgroundController.injectionLocks.set(tabId, newLock);
+		BackgroundController.injectionTracker.set(tabId, releaseLock);
+		return true;
+	}
+
+	function releaseInjectionLock(tabId) {
+		const release = BackgroundController.injectionTracker.get(tabId);
+		if (release) {
+			release();
+			BackgroundController.injectionLocks.delete(tabId);
+			BackgroundController.injectionTracker.delete(tabId);
+		}
+	}
+
 	// 스토리지 캐시 관리 함수들
 	const StorageCache = {
 		async get(key) {
@@ -266,19 +288,18 @@
 		}
 	}
 
-	// reinjectContentScript도 동일하게 injection lock 사용
-	// async function reinjectContentScript(tabId) {
-	// 	if (!(await acquireInjectionLock(tabId))) {
-	// 		log('재주입 락 획득 실패, 중복 방지', tabId);
-	// 		return;
-	// 	}
-	// 	try {
-	// 		const tab = await chrome.tabs.get(tabId);
-	// 		return await safeInjectContentScript(tabId, tab.url);
-	// 	} finally {
-	// 		releaseInjectionLock(tabId);
-	// 	}
-	// }
+	async function reinjectContentScript(tabId) {
+		if (!(await acquireInjectionLock(tabId))) {
+			log('재주입 락 획득 실패, 중복 방지', tabId);
+			return;
+		}
+		try {
+			const tab = await chrome.tabs.get(tabId);
+			return await safeInjectContentScript(tabId, tab.url);
+		} finally {
+			releaseInjectionLock(tabId);
+		}
+	}
 
 	// 탭 컨텍스트 검증 함수 추가
 	async function verifyTabContext(tabId) {

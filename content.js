@@ -81,10 +81,10 @@
 	}
 
 	// 빠른 초기화를 위한 즉시 실행 함수
-	const quickInit = () => {
+	const quickInit = async () => {
 		const videos = document.getElementsByTagName('video');
 		if (videos.length > 0) {
-			chrome.storage.sync.get(['siteSettings'], (result) => {
+			chrome.storage.sync.get(['siteSettings'], async (result) => {
 				if (chrome.runtime.lastError) return;
 
 				const siteSettings = result.siteSettings || {};
@@ -96,10 +96,7 @@
 					const enabled = typeof setting === 'object' ? setting.enabled : true;
 
 					if (enabled && matchUrlPattern(pattern, currentUrl)) {
-						for (const video of videos) {
-							video.playbackRate = speed;
-						}
-						state.currentSpeed = speed;
+						await applySpeedToAllVideos(speed);
 						state.autoSpeedApplied = true;
 						matchFound = true;
 						break;
@@ -108,10 +105,7 @@
 
 				// 매칭되는 패턴이 없을 경우 기본 속도로 설정
 				if (!matchFound) {
-					for (const video of videos) {
-						video.playbackRate = state.youtubeConfig.defaultSpeed;
-					}
-					state.currentSpeed = state.youtubeConfig.defaultSpeed;
+					await applySpeedToAllVideos(state.youtubeConfig.defaultSpeed);
 					state.autoSpeedApplied = false;
 				}
 			});
@@ -330,28 +324,14 @@
 					state.currentSpeed = speed;
 					state.pendingSpeedUpdate = speed;
 
-					if (pattern.includes('youtube.com/shorts')) {
-						return await handleYouTubeShortsVideo(speed);
-					}
-
-					const videos = document.getElementsByTagName('video');
-					Array.from(videos).forEach((video) => {
-						video.playbackRate = speed;
-					});
+					await applySpeedToAllVideos(speed);
 
 					settingApplied = true;
 					break;
 				}
 			}
 
-			// 매칭되는 패턴이 없을 경우 기본 속도 적용
-			if (!settingApplied) {
-				const videos = document.getElementsByTagName('video');
-				Array.from(videos).forEach((video) => {
-					video.playbackRate = state.youtubeConfig.defaultSpeed;
-				});
-				state.currentSpeed = state.youtubeConfig.defaultSpeed;
-			}
+			
 
 			state.autoSpeedApplied = settingApplied;
 			return settingApplied;
@@ -473,7 +453,7 @@
 				}
 
 				// 사이트별 설정 적용
-				await applySiteSettings(true);
+				// await applySiteSettings(true); // Removed this line
 
 				state.initialized = true;
 			}
@@ -507,10 +487,8 @@
 			};
 
 			const handleRateChange = async () => {
-				// 외부에서 속도가 변경되었을 때만 상태 업데이트
-				if (!state.pendingSpeedUpdate && !state.autoSpeedApplied) {
-					await setVideoSpeed(video, video.playbackRate);
-				}
+				// 속도 변경 시 항상 상태 업데이트
+				await setVideoSpeed(video, video.playbackRate);
 			};
 
 			// 이벤트 리스너 등록
