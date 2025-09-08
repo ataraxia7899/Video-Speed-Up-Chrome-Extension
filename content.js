@@ -70,9 +70,9 @@
 		// 최대 에러 출력 횟수를 초과하지 않았을 때만 로그 출력
 		if (reconnectionState.errorCount < reconnectionState.maxErrorsInThreshold) {
 			if (error) {
-				console.error(message, error);
+				// console.error(message, error);
 			} else {
-				console.error(message);
+				// console.error(message);
 			}
 			reconnectionState.errorCount++;
 		}
@@ -136,7 +136,7 @@
 		state.initializationQueue = state.initializationQueue
 			.then(fn)
 			.catch((error) => {
-				console.error('Initialization error:', error);
+				// console.error('Initialization error:', error);
 			});
 		return state.initializationQueue;
 	}
@@ -272,7 +272,7 @@
 
 			return response?.success === true;
 		} catch (error) {
-			console.error('Context validation failed:', error);
+			// console.error('Context validation failed:', error);
 			return false;
 		}
 	}
@@ -356,7 +356,7 @@
 			state.autoSpeedApplied = settingApplied;
 			return settingApplied;
 		} catch (error) {
-			console.error('Error applying site settings:', error);
+			// console.error('Error applying site settings:', error);
 			return false;
 		}
 	}
@@ -455,7 +455,7 @@
 						state.pendingSpeedUpdate = response.speed;
 					}
 				} catch (error) {
-					console.error('Error loading saved speed:', error);
+					// console.error('Error loading saved speed:', error);
 				}
 
 				// 관찰자 설정
@@ -479,7 +479,7 @@
 			}
 			return true;
 		} catch (error) {
-			console.error('Initialization failed:', error);
+			// console.error('Initialization failed:', error);
 			state.initialized = false;
 			return false;
 		}
@@ -533,7 +533,7 @@
 
 			state.initializedVideos.add(video);
 		} catch (error) {
-			console.error('Video initialization error:', error);
+			// console.error('Video initialization error:', error);
 		}
 	}
 
@@ -578,7 +578,7 @@
 
 			return false;
 		} catch (error) {
-			console.error('Error setting video speed:', error);
+			// console.error('Error setting video speed:', error);
 			return false;
 		}
 	}
@@ -604,7 +604,7 @@
 
 			return false;
 		} catch (error) {
-			console.error('Error applying speed to all videos:', error);
+			// console.error('Error applying speed to all videos:', error);
 			return false;
 		}
 	}
@@ -704,7 +704,7 @@
 				}
 			}
 		} catch (error) {
-			console.error('Error processing video queue:', error);
+			// console.error('Error processing video queue:', error);
 		} finally {
 			processingQueue = false;
 
@@ -1128,7 +1128,7 @@
 				document.removeEventListener('click', handleOutsideClick);
 			});
 		} catch (error) {
-			console.error('Error showing speed input popup:', error);
+			// console.error('Error showing speed input popup:', error);
 		}
 	}
 
@@ -1244,7 +1244,7 @@
 			try {
 				cleanup();
 			} catch (error) {
-				console.error('Cleanup error:', error);
+				// console.error('Cleanup error:', error);
 			}
 		});
 		state.cleanup.clear();
@@ -1277,7 +1277,7 @@
 
 	// 초기화 실행 개선
 	initialize().catch(async (error) => {
-		console.error('Initial setup failed:', error);
+		// console.error('Initial setup failed:', error);
 		await new Promise((resolve) => setTimeout(resolve, 1000));
 		tryReconnect().catch(console.error);
 	});

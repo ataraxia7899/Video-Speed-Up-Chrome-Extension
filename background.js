@@ -160,7 +160,7 @@
 
 	function log(...args) {
 		if (BackgroundController.DEBUG) {
-			console.log('[Background]', new Date().toISOString(), ...args);
+			// console.log('[Background]', new Date().toISOString(), ...args);
 		}
 	}
 
@@ -267,18 +267,18 @@
 	}
 
 	// reinjectContentScript도 동일하게 injection lock 사용
-	async function reinjectContentScript(tabId) {
-		if (!(await acquireInjectionLock(tabId))) {
-			log('재주입 락 획득 실패, 중복 방지', tabId);
-			return;
-		}
-		try {
-			const tab = await chrome.tabs.get(tabId);
-			return await safeInjectContentScript(tabId, tab.url);
-		} finally {
-			releaseInjectionLock(tabId);
-		}
-	}
+	// async function reinjectContentScript(tabId) {
+	// 	if (!(await acquireInjectionLock(tabId))) {
+	// 		log('재주입 락 획득 실패, 중복 방지', tabId);
+	// 		return;
+	// 	}
+	// 	try {
+	// 		const tab = await chrome.tabs.get(tabId);
+	// 		return await safeInjectContentScript(tabId, tab.url);
+	// 	} finally {
+	// 		releaseInjectionLock(tabId);
+	// 	}
+	// }
 
 	// 탭 컨텍스트 검증 함수 추가
 	async function verifyTabContext(tabId) {
@@ -286,9 +286,9 @@
 			const response = await sendMessageWithRetry(tabId, { action: 'ping' }, 0);
 			return response?.success === true;
 		} catch (e) {
-			log('verifyTabContext: 컨텍스트 무효화 감지, 자동 복구 시도', tabId);
-			await reinjectContentScript(tabId);
-			return false;
+			// log('verifyTabContext: 컨텍스트 무효화 감지, 자동 복구 시도', tabId);
+			// await reinjectContentScript(tabId);
+			// return false;
 		}
 	}
 
@@ -440,7 +440,7 @@
 		if (changeInfo.status === 'complete') {
 			const valid = await verifyTabContext(tabId);
 			if (!valid) {
-				log('onUpdated: 컨텍스트 무효화 감지, 자동 복구 시도', tabId);
+				// log('onUpdated: 컨텍스트 무효화 감지, 자동 복구 시도', tabId);
 				await reinjectContentScript(tabId);
 			}
 		}
@@ -458,7 +458,7 @@
 				await new Promise((resolve) => setTimeout(resolve, 500));
 				await safeInjectContentScript(tabId, url);
 			} catch (error) {
-				throttledLog('error', 'Navigation handler error:', error);
+				// throttledLog('error', 'Navigation handler error:', error);
 			}
 		};
 
@@ -516,7 +516,7 @@
 	// 컨텍스트 복구 함수
 	async function tryReconnect(tabId) {
 		if (!(await acquireInjectionLock(tabId))) {
-			log('tryReconnect: 락 획득 실패, 중복 방지', tabId);
+			// log('tryReconnect: 락 획득 실패, 중복 방지', tabId);
 			return;
 		}
 		try {
@@ -528,7 +528,7 @@
 
 	// 확장 프로그램 설치/업데이트 핸들러 개선
 	chrome.runtime.onInstalled.addListener(async (details) => {
-		log('Extension event:', details.reason);
+		// log('Extension event:', details.reason);
 
 		if (details.reason === 'install') {
 			const defaultSettings = {
@@ -538,7 +538,7 @@
 			};
 
 			chrome.storage.sync.set(defaultSettings, () => {
-				log('Default settings initialized');
+				// log('Default settings initialized');
 			});
 		} else if (details.reason === 'update') {
 			chrome.storage.sync.get(null, (data) => {
@@ -568,7 +568,7 @@
 				}
 			}
 		} catch (error) {
-			throttledLog('error', 'Error reinjecting content scripts:', error);
+			// throttledLog('error', 'Error reinjecting content scripts:', error);
 		}
 
 		// 캐시 초기화
