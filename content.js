@@ -18,6 +18,7 @@
 		videoObserver: null,
 		documentObserver: null,
 		autoSpeedApplied: false,
+		manualOverride: false, // 사용자 수동 조작 여부
 		retryAttempts: 0,
 		maxRetries: 5,
 		retryDelay: 1000,
@@ -308,6 +309,11 @@
 
 	// 사이트별 설정 적용 함수 개선
 	async function applySiteSettings(force = false) {
+		// 사용자가 수동으로 속도를 설정한 경우 자동 설정 무시
+		if (state.manualOverride) {
+			return false;
+		}
+
 		if (!state.contextValid && !force) {
 			state.contextValid = await attemptRecovery();
 			if (!state.contextValid) return false;
@@ -403,6 +409,8 @@
 							request.speed >= 0.1 &&
 							request.speed <= 16
 						) {
+							// 사용자가 수동으로 속도를 설정했음을 표시
+							state.manualOverride = true;
 							state.pendingSpeedUpdate = request.speed;
 							const success = await applySpeedToAllVideos(request.speed);
 							return { success, speed: request.speed };
@@ -1195,6 +1203,8 @@
 					e.preventDefault();
 					const speed = parseFloat(input.value);
 					if (!isNaN(speed) && speed >= 0.1 && speed <= 16) {
+						// 사용자가 수동으로 속도를 설정했음을 표시
+						state.manualOverride = true;
 						await applySpeedToAllVideos(speed);
 						popup.remove();
 					}
