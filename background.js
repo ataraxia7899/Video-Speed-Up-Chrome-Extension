@@ -56,10 +56,19 @@
 			errorThreshold: 5000,
 			maxErrorsInThreshold: 3,
 		},
+		// 상수 정의
+		CONSTANTS: {
+			CACHE_TTL: 5000,
+			MAX_RETRIES: 3,
+			RETRY_DELAY: 1000,
+			CONNECTION_TIMEOUT: 5000,
+			MESSAGE_TIMEOUT: 2000,
+			STATUS_CHECK_INTERVAL: 5000,
+		},
 		storageCache: {
 			cache: new Map(),
 			timestamps: new Map(),
-			TTL: 5000, // 캐시 유효 시간 (5초)
+			TTL: 5000,
 			pendingRequests: new Map(),
 		},
 	};
@@ -153,11 +162,11 @@
 		},
 	};
 
-	// 기존 tabSpeedStates에 TTL 추가
+	// 기존 tabSpeedStates에 TTL 추가 - BackgroundController.CONSTANTS 사용
 	const tabSpeedStates = {
 		speeds: new Map(),
 		timestamps: new Map(),
-		TTL: 5000, // 5초
+		TTL: BackgroundController.CONSTANTS.CACHE_TTL,
 
 		set(tabId, speed) {
 			this.speeds.set(tabId, speed);
@@ -248,6 +257,24 @@
 		}
 	}
 
+	// Content Script 주입 큐 관리
+	async function queueContentScriptInjection(tabId) {
+		const queue = BackgroundController.injectionQueue;
+		
+		// 이미 큐에 있으면 스킵
+		if (queue.has(tabId)) {
+			return;
+		}
+		
+		queue.set(tabId, true);
+		
+		try {
+			await injectContentScript(tabId);
+		} finally {
+			queue.delete(tabId);
+		}
+	}
+
 	// Content Script 주입 함수 개선
 	async function injectContentScript(tabId, url) {
 		if (!(await acquireInjectionLock(tabId))) {
@@ -281,7 +308,12 @@
 			state.isInjected = true;
 			log('Content Script 주입 성공', tabId);
 		} catch (error) {
-			throttledLog('error', 'Content Script 주입 실패', error);
+			// Chrome 웹 스토어 등 보호된 페이지에서는 에러 무시
+			const ignoredPatterns = ['cannot be scripted', 'extensions gallery', 'chrome://'];
+			const isIgnored = ignoredPatterns.some(p => error.message?.toLowerCase().includes(p.toLowerCase()));
+			if (!isIgnored) {
+				throttledLog('error', 'Content Script 주입 실패', error);
+			}
 		} finally {
 			state.isInjecting = false;
 			injectionStates.set(tabId, state);
@@ -394,9 +426,8 @@
 		BackgroundController.portStates.delete(tabId);
 	}
 
-	// 포트 연결 관리 개선
-	let ports = new Map();
-	let portReconnectTimeouts = new Map();
+	// 포트 연결 관리 개선 - BackgroundController.ports 사용
+	const portReconnectTimeouts = new Map();
 
 	chrome.runtime.onConnect.addListener((port) => {
 		if (port.name === 'videoSpeedController') {
@@ -407,7 +438,8 @@
 					portReconnectTimeouts.delete(tabId);
 				}
 
-				ports.set(tabId, port);
+				// BackgroundController.ports 사용
+				BackgroundController.ports.set(tabId, port);
 
 				port.onMessage.addListener((msg) => {
 					if (msg.action === 'ping') {
@@ -416,7 +448,7 @@
 				});
 
 				port.onDisconnect.addListener(() => {
-					ports.delete(tabId);
+					BackgroundController.ports.delete(tabId);
 
 					const timeout = setTimeout(() => {
 						tryReconnect(tabId);
@@ -436,11 +468,13 @@
 			portReconnectTimeouts.delete(tabId);
 		}
 
-		if (ports.has(tabId)) {
+		if (BackgroundController.ports.has(tabId)) {
 			try {
-				ports.get(tabId).disconnect();
-			} catch {}
-			ports.delete(tabId);
+				BackgroundController.ports.get(tabId).disconnect();
+			} catch (e) {
+				throttledLog('debug', 'Port disconnect during cleanup', e);
+			}
+			BackgroundController.ports.delete(tabId);
 		}
 
 		resetTabState(tabId);
@@ -744,4 +778,15 @@
 			}
 		}
 	}
+
+// 단축키 명령 리스너
+chrome.commands.onCommand.addListener((command) => {
+	if (command === 'toggle-speed-input') {
+		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+			if (tabs[0]?.id) {
+				chrome.tabs.sendMessage(tabs[0].id, { action: 'toggleSpeedPopup' });
+			}
+		});
+	}
+});
 })();

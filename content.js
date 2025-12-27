@@ -16,9 +16,9 @@
 		retryDelay: 1000,
 		initializationQueue: Promise.resolve(),
 		youtubeConfig: {
-			RETRY_INTERVAL: 50,
-			MAX_RETRIES: 20,
-			MUTATION_DEBOUNCE: 50,
+			RETRY_INTERVAL: typeof VSC_CONSTANTS !== 'undefined' ? VSC_CONSTANTS.YOUTUBE_RETRY_INTERVAL : 50,
+			MAX_RETRIES: typeof VSC_CONSTANTS !== 'undefined' ? VSC_CONSTANTS.YOUTUBE_MAX_RETRIES : 20,
+			MUTATION_DEBOUNCE: typeof VSC_CONSTANTS !== 'undefined' ? VSC_CONSTANTS.YOUTUBE_MUTATION_DEBOUNCE : 150,
 			isYouTube: window.location.hostname.includes('youtube.com'),
 			lastSpeedUpdate: 0,
 			updateDelay: 100,
@@ -26,7 +26,7 @@
 			isShortsPage: false,
 			shortsObserver: null,
 			lastShortsVideoId: null,
-			defaultSpeed: 1.0, // YouTube의 기본 재생 속도
+			defaultSpeed: typeof VSC_CONSTANTS !== 'undefined' ? VSC_CONSTANTS.DEFAULT_SPEED : 1.0,
 		},
 		connectionConfig: {
 			reconnectAttempts: 0,
@@ -145,7 +145,9 @@
 			if (state.portConnection) {
 				try {
 					state.portConnection.disconnect();
-				} catch {}
+				} catch {
+					// 포트 이미 연결 해제됨 - 무시
+				}
 			}
 
 			state.portConnection = chrome.runtime.connect({
@@ -373,6 +375,7 @@
 
 					case 'toggleSpeedInput':
 					case 'showSpeedInput':
+					case 'toggleSpeedPopup':
 						if (!state.contextValid) {
 							const recovered = await attemptRecovery(true);
 							if (!recovered) {
@@ -443,7 +446,7 @@
 				observeUrlChanges();
 
 				if (state.youtubeConfig.isYouTube) {
-					observeYouTubeShortsNavigation();
+					initYouTubeShortsObserver();
 				}
 
 				// 현재 비디오 요소들 초기화
@@ -823,7 +826,9 @@
 						player.setPlaybackRate(speed);
 					}
 				}
-			} catch {}
+			} catch {
+				// YouTube 플레이어 API 사용 불가 - 기본 방식으로 진행
+			}
 
 			video.playbackRate = speed;
 			await new Promise((resolve) => setTimeout(resolve, 50));
@@ -835,7 +840,59 @@
 		}
 	}
 
-	// YouTube Shorts 전용 처리 함수 추가
+	// YouTube Shorts 네비게이션 감시 초기화 함수
+	function initYouTubeShortsObserver() {
+		if (!state.youtubeConfig.isYouTube) return;
+
+		// Shorts 페이지 감지 및 비디오 처리
+		const handleShortsNavigation = async () => {
+			if (detectYouTubeShortsPage()) {
+				state.youtubeConfig.isShortsPage = true;
+				const videos = document.getElementsByTagName('video');
+				for (const video of videos) {
+					if (!state.initializedVideos.has(video)) {
+						await initializeVideo(video);
+					}
+				}
+				if (state.pendingSpeedUpdate !== null) {
+					await handleYouTubeShortsVideo(state.pendingSpeedUpdate);
+				}
+			} else {
+				state.youtubeConfig.isShortsPage = false;
+			}
+		};
+
+		// MutationObserver로 Shorts 페이지 변경 감지
+		if (state.youtubeConfig.shortsObserver) {
+			state.youtubeConfig.shortsObserver.disconnect();
+		}
+
+		state.youtubeConfig.shortsObserver = new MutationObserver(() => {
+			const currentVideoId = window.location.pathname.split('/shorts/')[1]?.split('?')[0];
+			if (currentVideoId !== state.youtubeConfig.lastShortsVideoId) {
+				state.youtubeConfig.lastShortsVideoId = currentVideoId;
+				handleShortsNavigation();
+			}
+		});
+
+		state.youtubeConfig.shortsObserver.observe(document.body, {
+			childList: true,
+			subtree: true,
+		});
+
+		// 초기 실행
+		handleShortsNavigation();
+
+		// 정리 함수
+		state.cleanup.add(() => {
+			if (state.youtubeConfig.shortsObserver) {
+				state.youtubeConfig.shortsObserver.disconnect();
+				state.youtubeConfig.shortsObserver = null;
+			}
+		});
+	}
+
+	// YouTube Shorts 페이지 감지 함수
 	async function handleYouTubeShortsSpecific(speed) {
 		try {
 			// 댓글 로딩 상태 확인
@@ -1019,12 +1076,38 @@
         animation: fadeInScale 0.2s ease-out;
         border: 1px solid rgba(0, 0, 0, 0.1);
       }
+
+      #speed-input-popup.dark-mode {
+        background: #1a1d21;
+        color: #e4e6eb;
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      #speed-input-popup.dark-mode .popup-title {
+        color: #e4e6eb;
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+      }
+      #speed-input-popup.dark-mode .speed-input {
+        background: #2d2d2d;
+        border-color: #40444b;
+        color: #e4e6eb;
+      }
+      #speed-input-popup.dark-mode .info-container {
+        background: #2c2f33;
+      }
+      #speed-input-popup.dark-mode .shortcut-info {
+        color: #b9bbbe;
+      }
+      #speed-input-popup.dark-mode .shortcut-key {
+        background: #40444b;
+        color: #e4e6eb;
+      }
     `;
 		document.head.appendChild(style);
 
 		const title = document.createElement('div');
 		title.className = 'popup-title';
-		title.textContent = '재생 속도 설정';
+		// 국제화 적용 - chrome.i18n API 활용
+		title.textContent = chrome.i18n?.getMessage?.('speedSettingTitle') || '재생 속도 설정';
 
 		const inputContainer = document.createElement('div');
 		inputContainer.className = 'input-container';
@@ -1042,8 +1125,10 @@
 
 		const shortcutInfo = document.createElement('div');
 		shortcutInfo.className = 'shortcut-info';
-		shortcutInfo.innerHTML =
-			'<span class="shortcut-key">Enter</span> 적용 | <span class="shortcut-key">ESC</span> 취소';
+		// 국제화 적용
+		const applyText = chrome.i18n?.getMessage?.('shortcutApply') || '적용';
+		const cancelText = chrome.i18n?.getMessage?.('shortcutCancel') || '취소';
+		shortcutInfo.innerHTML = `<span class="shortcut-key">Enter</span> ${applyText} | <span class="shortcut-key">ESC</span> ${cancelText}`;
 
 		infoContainer.appendChild(shortcutInfo);
 		inputContainer.appendChild(input);
@@ -1066,6 +1151,13 @@
 			}
 
 			const { popup, input } = createSpeedInputPopup();
+
+			// 다크 모드 적용
+			chrome.storage.sync.get(['darkMode'], (result) => {
+				if (result.darkMode === true) {
+					popup.classList.add('dark-mode');
+				}
+			});
 
 			// 팝업을 body의 가장 마지막에 추가
 			document.body.appendChild(popup);
@@ -1160,12 +1252,12 @@
 
 		history.pushState = function () {
 			originalPushState.apply(this, arguments);
-			debouncedUrlChange();
+			handleUrlChange();
 		};
 
 		history.replaceState = function () {
 			originalReplaceState.apply(this, arguments);
-			debouncedUrlChange();
+			handleUrlChange();
 		};
 
 		// DOM 변경 감지
@@ -1194,8 +1286,8 @@
 		});
 	}
 
-	// 주기적 상태 검사 개선
-	const checkInterval = 5000; // 5초마다 검사
+	// 주기적 상태 검사 개선 - 5초 간격으로 조정
+	const checkInterval = typeof VSC_CONSTANTS !== 'undefined' ? VSC_CONSTANTS.STATUS_CHECK_INTERVAL : 5000;
 	let lastCheck = 0;
 
 	setInterval(async () => {

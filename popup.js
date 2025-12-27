@@ -11,86 +11,80 @@ const utils = {
 	},
 };
 
-// 스토리지 캐시 시스템
-const StorageManager = {
-    cache: new Map(),
-    timestamps: new Map(),
-    TTL: 5000, // 5초
-    pendingRequests: new Map(),
-
-    async get(key) {
-        const now = Date.now();
-
-        // 캐시 히트 확인
-        if (this.cache.has(key)) {
-            const timestamp = this.timestamps.get(key);
-            if (now - timestamp < this.TTL) {
-                return this.cache.get(key);
-            }
-            this.cache.delete(key);
-            this.timestamps.delete(key);
-        }
-
-        // 진행 중인 요청이 있다면 해당 Promise 반환
-        if (this.pendingRequests.has(key)) {
-            return this.pendingRequests.get(key);
-        }
-
-        // 새로운 요청 생성
-        const promise = new Promise((resolve) => {
-            chrome.storage.sync.get(key, (result) => {
-                const value = result[key];
-                this.cache.set(key, value);
-                this.timestamps.set(key, now);
-                this.pendingRequests.delete(key);
-                resolve(value);
-            });
-        });
-
-        this.pendingRequests.set(key, promise);
-        return promise;
-    },
-
-    async set(key, value) {
-        const now = Date.now();
-        
-        this.cache.set(key, value);
-        this.timestamps.set(key, now);
-
-        return new Promise((resolve) => {
-            chrome.storage.sync.set({ [key]: value }, resolve);
-        });
-    },
-
-    clear(key) {
-        this.cache.delete(key);
-        this.timestamps.delete(key);
-        this.pendingRequests.delete(key);
-    },
-
-    clearAll() {
-        this.cache.clear();
-        this.timestamps.clear();
-        this.pendingRequests.clear();
-    }
-};
+// 스토리지 캐시 시스템 - utils.js의 StorageCacheManager 사용
+const StorageManager = new StorageCacheManager();
 
 // 핵심 유틸리티 함수들
 function updateSpeedDisplays(speed) {
 	try {
-		const speedValue = parseFloat(speed).toFixed(2); // 소수점 두 자리까지 표시
+		const speedValue = parseFloat(speed).toFixed(2);
 		const currentSpeedEl = document.getElementById('current-speed');
 		const speedInputEl = document.getElementById('speed-input');
 
 		if (currentSpeedEl) {
 			currentSpeedEl.textContent = speedValue;
+			// 속도별 색상 클래스 적용
+			applySpeedColorClass(currentSpeedEl, parseFloat(speed));
 		}
 
 		if (speedInputEl && !speedInputEl.matches(':focus')) {
 			speedInputEl.value = speedValue;
 		}
+
+		// 현재 속도와 일치하는 프리셋 버튼 하이라이트
+		updatePresetButtonHighlight(parseFloat(speed));
 	} catch (error) {
-		console.error('Error updating displays:', error); // utils.log 대신 console.error 사용
+		console.error('Error updating displays:', error);
+	}
+}
+
+// 속도별 색상 클래스 적용
+function applySpeedColorClass(element, speed) {
+	element.classList.remove('speed-slow', 'speed-normal', 'speed-fast', 'speed-very-fast');
+	
+	if (speed < 1.0) {
+		element.classList.add('speed-slow');
+	} else if (speed === 1.0) {
+		element.classList.add('speed-normal');
+	} else if (speed <= 2.0) {
+		element.classList.add('speed-fast');
+	} else {
+		element.classList.add('speed-very-fast');
+	}
+}
+
+// 프리셋 버튼 하이라이트 업데이트
+function updatePresetButtonHighlight(speed) {
+	const presetButtons = document.querySelectorAll('.speed-btn[data-speed]');
+	presetButtons.forEach(btn => {
+		const btnSpeed = parseFloat(btn.dataset.speed);
+		if (!isNaN(btnSpeed) && btnSpeed === speed) {
+			btn.classList.add('active');
+		} else {
+			btn.classList.remove('active');
+		}
+	});
+}
+
+// 다크 모드 초기화 및 토글
+// 다크 모드 초기화 및 토글
+function initializeDarkMode() {
+	const toggle = document.getElementById('dark-mode-toggle');
+
+	// chrome.storage.sync 사용
+	chrome.storage.sync.get(['darkMode'], (result) => {
+		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		if (result.darkMode === true || (result.darkMode === undefined && prefersDark)) {
+			document.body.classList.add('dark-mode');
+		}
+	});
+	
+	if (toggle) {
+		toggle.addEventListener('click', () => {
+			document.body.classList.toggle('dark-mode');
+			const isDark = document.body.classList.contains('dark-mode');
+			chrome.storage.sync.set({ darkMode: isDark });
+		});
 	}
 }
 
@@ -215,7 +209,7 @@ async function getCurrentSpeed() {
 }
 
 // 초기화 함수 개선 - 버튼 동작 문제 해결
-window.addEventListener('DOMContentLoaded', initializeApp);
+// DOMContentLoaded는 하단에서 통합 처리
 
 async function initializeApp() {
 	try {
@@ -226,6 +220,9 @@ async function initializeApp() {
         if (tab?.id) {
             await loadUserPreferences(tab.id);
         }
+
+		// 다크 모드 초기화
+		initializeDarkMode();
 
 		// 애니메이션 효과 추가
 		addAnimationEffects();
@@ -619,15 +616,7 @@ function localizeHtmlPage() {
 	});
 }
 
-// Update the speed input label to include the range information
-function localizeSpeedInput() {
-    const speedRangeInfo = chrome.i18n.getMessage('speedRangeInfo');
-    const speedRangeInfoElement = document.querySelector('.speed-range-info');
-
-    if (speedRangeInfoElement) {
-        speedRangeInfoElement.textContent = speedRangeInfo;
-    }
-}
+// localizeHtmlPage에서 범위 정보도 함께 처리됨
 
 // 단축키 설정 초기화 함수 개선
 async function initializeShortcuts() {
@@ -664,10 +653,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }, 500);
         }
 
-        await Promise.all([
-            initializeApp(),
-            initializeShortcuts()
-        ]);
+        // 앱 초기화 및 단축키 설정 로드
+        await initializeApp();
+        await initializeShortcuts();
 
         // 팝업 닫힐 때 정리
         window.addEventListener('unload', () => {
@@ -678,25 +666,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// 팝업 생성 함수 업데이트
-async function createSpeedInputPopup() {
-    const popup = document.createElement('div');
-    popup.className = 'speed-popup';
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'speed-popup-input';
-    input.placeholder = '0.1 ~ 16';
-
-    // 현재 탭의 속도로 초기화
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id) {
-        const speed = await getTabSpeed(tab.id);
-        input.value = speed.toFixed(2);
-    }
-
-    popup.appendChild(input);
-    return { popup, input };
-}
+// createSpeedInputPopup은 content.js에서 처리됨
 
 

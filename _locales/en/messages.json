@@ -94,5 +94,39 @@
 	"shortcutSettingsNote": {
 		"message": "Shortcuts can be changed in Chrome Settings > Extensions > Keyboard shortcuts",
 		"description": "Shortcut settings guidance note"
+	},
+	"speedSettingTitle": {
+		"message": "Playback Speed Setting",
+		"description": "Content script popup title"
+	},
+	"shortcutApply": {
+		"message": "Apply",
+		"description": "Apply action in shortcut info"
+	},
+	"shortcutCancel": {
+		"message": "Cancel",
+		"description": "Cancel action in shortcut info"
+	},
+	"toggleDarkMode": {
+		"message": "Toggle dark mode",
+		"description": "Dark mode toggle button accessibility label"
+	},
+	"decreaseSpeed": {
+		"message": "Decrease speed by $AMOUNT$",
+		"description": "Decrease speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
+	},
+	"increaseSpeed": {
+		"message": "Increase speed by $AMOUNT$",
+		"description": "Increase speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
 	}
 }
