@@ -57,7 +57,13 @@ function applySpeedColorClass(element, speed) {
 function updatePresetButtonHighlight(speed) {
 	const presetButtons = document.querySelectorAll('.speed-btn[data-speed]');
 	presetButtons.forEach(btn => {
-		const btnSpeed = parseFloat(btn.dataset.speed);
+		const speedAttr = btn.dataset.speed;
+		// 상대 속도 버튼(+, -로 시작)은 하이라이트 제외
+		if (speedAttr.startsWith('+') || speedAttr.startsWith('-')) {
+			btn.classList.remove('active');
+			return;
+		}
+		const btnSpeed = parseFloat(speedAttr);
 		if (!isNaN(btnSpeed) && btnSpeed === speed) {
 			btn.classList.add('active');
 		} else {
