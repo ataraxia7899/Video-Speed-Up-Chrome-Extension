@@ -90,10 +90,17 @@
 
 	// 빠른 초기화를 위한 즉시 실행 함수
 	const quickInit = async () => {
+		// 사용자가 수동으로 속도를 설정한 경우 자동 설정 무시
+		if (state.manualOverride) {
+			return;
+		}
+
 		const videos = document.getElementsByTagName('video');
 		if (videos.length > 0) {
 			chrome.storage.sync.get(['siteSettings'], async (result) => {
 				if (chrome.runtime.lastError) return;
+				// 수동 설정 다시 확인 (비동기 콜백 내부)
+				if (state.manualOverride) return;
 
 				const siteSettings = result.siteSettings || {};
 				const currentUrl = window.location.href;
@@ -120,14 +127,22 @@
 		}
 	};
 
-	// URL 패턴 매칭 최적화
+	// 정규식 캐시
+	const regexCache = new Map();
+
+	// URL 패턴 매칭 최적화 (캐싱 적용)
 	function matchUrlPattern(pattern, url) {
 		try {
-			const regexPattern = pattern
-				.replace(/\./g, '\\.')
-				.replace(/\*/g, '.*')
-				.replace(/\//g, '\\/');
-			return new RegExp(regexPattern).test(url);
+			let regex = regexCache.get(pattern);
+			if (!regex) {
+				const regexPattern = pattern
+					.replace(/\./g, '\\.')
+					.replace(/\*/g, '.*')
+					.replace(/\//g, '\\/');
+				regex = new RegExp(regexPattern);
+				regexCache.set(pattern, regex);
+			}
+			return regex.test(url);
 		} catch {
 			return false;
 		}
@@ -504,9 +519,22 @@
 				}
 			};
 
-			const handleRateChange = async () => {
-				// 속도 변경 시 항상 상태 업데이트
-				await setVideoSpeed(video, video.playbackRate);
+			let isRestoringSpeed = false;
+			const handleRateChange = () => {
+				// 복원 중이면 무시 (무한 루프 방지)
+				if (isRestoringSpeed) return;
+
+				// 외부에서 속도가 변경된 경우 (예: 다음 에피소드 자동재생)
+				// 사용자가 설정한 속도로 복원
+				const targetSpeed = state.pendingSpeedUpdate ?? state.currentSpeed;
+				if (targetSpeed !== 1.0 && Math.abs(video.playbackRate - targetSpeed) > 0.01) {
+					isRestoringSpeed = true;
+					video.playbackRate = targetSpeed;
+					// 다음 프레임에서 플래그 해제
+					requestAnimationFrame(() => {
+						isRestoringSpeed = false;
+					});
+				}
 			};
 
 			// 이벤트 리스너 등록
@@ -1163,17 +1191,14 @@
 	function showSpeedInputPopup() {
 		const now = Date.now();
 		if (now - lastPopupToggle < POPUP_DEBOUNCE_MS) {
-			console.log('[Content] Debounced popup toggle');
 			return;
 		}
 		lastPopupToggle = now;
 
-		console.log('[Content] showSpeedInputPopup called');
 		try {
 			// 이미 존재하는 팝업 제거
 			const existingPopup = document.getElementById('speed-input-popup');
 			if (existingPopup) {
-				console.log('[Content] Removing existing popup');
 				existingPopup.remove();
 				return;
 			}
@@ -1189,7 +1214,6 @@
 
 			// 팝업을 body의 가장 마지막에 추가
 			document.body.appendChild(popup);
-			console.log('[Content] Popup appended to body:', popup, 'Computed style:', window.getComputedStyle(popup).display);
 
 			// 포커스 및 선택
 			requestAnimationFrame(() => {
@@ -1301,20 +1325,10 @@
 		});
 	}
 
-	// 주기적 상태 검사 개선 - 5초 간격으로 조정
+	// 주기적 상태 검사 - 5초 간격
 	const checkInterval = typeof VSC_CONSTANTS !== 'undefined' ? VSC_CONSTANTS.STATUS_CHECK_INTERVAL : 5000;
-	let lastCheck = 0;
 
 	setInterval(async () => {
-		const now = Date.now();
-
-		// 마지막 검사 후 충분한 시간이 지났는지 확인
-		if (now - lastCheck < checkInterval) {
-			return;
-		}
-
-		lastCheck = now;
-
 		// 재연결 시도 중이면 스킵
 		if (reconnectionState.isReconnecting || reconnectionState.recoveryMode) {
 			return;
@@ -1328,7 +1342,7 @@
 				await applySiteSettings(true);
 			}
 		}
-	}, 2000);
+	}, checkInterval);
 
 	// 페이지 언로드 시 정리 함수 개선
 	window.addEventListener('beforeunload', () => {
