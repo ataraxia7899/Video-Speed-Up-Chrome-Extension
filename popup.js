@@ -75,13 +75,36 @@ function updatePresetButtonHighlight(speed) {
 // 다크 모드 초기화 및 토글
 function initializeDarkMode() {
 	const toggle = document.getElementById('dark-mode-toggle');
+	const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-	// chrome.storage.sync 사용
-	chrome.storage.sync.get(['darkMode'], (result) => {
-		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		if (result.darkMode === true || (result.darkMode === undefined && prefersDark)) {
+	// 다크모드 적용 함수
+	const applyDarkMode = (isDark) => {
+		if (isDark) {
 			document.body.classList.add('dark-mode');
+		} else {
+			document.body.classList.remove('dark-mode');
 		}
+	};
+
+	// 저장된 설정 또는 시스템 설정 적용
+	chrome.storage.sync.get(['darkMode'], (result) => {
+		if (result.darkMode !== undefined) {
+			// 사용자가 직접 설정한 경우
+			applyDarkMode(result.darkMode);
+		} else {
+			// 시스템 설정 따르기
+			applyDarkMode(darkModeMediaQuery.matches);
+		}
+	});
+
+	// 시스템 다크모드 변경 감지
+	darkModeMediaQuery.addEventListener('change', (e) => {
+		chrome.storage.sync.get(['darkMode'], (result) => {
+			// 사용자가 직접 설정하지 않은 경우에만 시스템 설정 반영
+			if (result.darkMode === undefined) {
+				applyDarkMode(e.matches);
+			}
+		});
 	});
 	
 	if (toggle) {
