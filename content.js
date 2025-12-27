@@ -1,5 +1,12 @@
 // Content Script Controller
 (() => {
+	// 중복 실행 방지
+	if (window.__videoSpeedControllerLoaded) {
+		console.log('[Content] Already loaded, skipping initialization');
+		return;
+	}
+	window.__videoSpeedControllerLoaded = true;
+
 	const state = {
 		contextValid: false,
 		currentSpeed: 1.0,
@@ -1140,12 +1147,25 @@
 		return { popup, input };
 	}
 
+	// 팝업 표시 디바운스 (중복 호출 방지)
+	let lastPopupToggle = 0;
+	const POPUP_DEBOUNCE_MS = 200;
+
 	// 팝업 표시 함수 개선
 	function showSpeedInputPopup() {
+		const now = Date.now();
+		if (now - lastPopupToggle < POPUP_DEBOUNCE_MS) {
+			console.log('[Content] Debounced popup toggle');
+			return;
+		}
+		lastPopupToggle = now;
+
+		console.log('[Content] showSpeedInputPopup called');
 		try {
 			// 이미 존재하는 팝업 제거
 			const existingPopup = document.getElementById('speed-input-popup');
 			if (existingPopup) {
+				console.log('[Content] Removing existing popup');
 				existingPopup.remove();
 				return;
 			}
@@ -1161,6 +1181,7 @@
 
 			// 팝업을 body의 가장 마지막에 추가
 			document.body.appendChild(popup);
+			console.log('[Content] Popup appended to body:', popup, 'Computed style:', window.getComputedStyle(popup).display);
 
 			// 포커스 및 선택
 			requestAnimationFrame(() => {
@@ -1209,23 +1230,7 @@
 		}
 	}
 
-	// 단축키 이벤트 핸들러 개선
-	document.addEventListener(
-		'keydown',
-		async (e) => {
-			if (e.ctrlKey && e.key === '.') {
-				e.preventDefault();
-				e.stopPropagation();
-
-				if (!state.contextValid) {
-					await attemptRecovery(true);
-				}
-
-				showSpeedInputPopup();
-			}
-		},
-		true
-	);
+	// 단축키는 background.js의 chrome.commands.onCommand에서 처리함
 
 	// URL 변경 감지 함수 개선
 	function observeUrlChanges() {

@@ -67,7 +67,6 @@ function updatePresetButtonHighlight(speed) {
 }
 
 // 다크 모드 초기화 및 토글
-// 다크 모드 초기화 및 토글
 function initializeDarkMode() {
 	const toggle = document.getElementById('dark-mode-toggle');
 

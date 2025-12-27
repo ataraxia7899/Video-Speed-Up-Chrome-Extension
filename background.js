@@ -781,10 +781,14 @@
 
 // 단축키 명령 리스너
 chrome.commands.onCommand.addListener((command) => {
+	console.log('[Background] Command received:', command);
 	if (command === 'toggle-speed-input') {
 		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+			console.log('[Background] Active tab:', tabs[0]?.id, tabs[0]?.url);
 			if (tabs[0]?.id) {
-				chrome.tabs.sendMessage(tabs[0].id, { action: 'toggleSpeedPopup' });
+				chrome.tabs.sendMessage(tabs[0].id, { action: 'toggleSpeedPopup' })
+					.then(() => console.log('[Background] Message sent successfully'))
+					.catch(err => console.log('[Background] Message failed:', err));
 			}
 		});
 	}
