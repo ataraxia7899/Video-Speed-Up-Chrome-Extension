@@ -410,6 +410,29 @@ h5::after {
 	transform: translateY(-2px);
 }
 
+/* site-row input 다크모드 스타일 */
+.dark-mode .site-row input {
+	background: #374151;
+	border-color: #4b5563;
+	color: #f3f4f6;
+}
+
+.dark-mode .site-row input::placeholder {
+	color: #9ca3af;
+}
+
+/* site-row number input 스피너 스타일 */
+.site-row input[type="number"]::-webkit-outer-spin-button,
+.site-row input[type="number"]::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+.site-row input[type="number"] {
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
+
 .site-row button {
 	padding: 12px 24px;
 	border-radius: 12px;

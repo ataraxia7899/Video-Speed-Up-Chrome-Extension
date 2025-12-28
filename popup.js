@@ -179,18 +179,11 @@ async function saveUserPreferences(tabId, speed) {
 }
 
 // 저장된 사용자 설정 불러오기 함수 업데이트
+// 주의: 이 함수는 표시만 하고, 속도를 변경하지 않음
+// 우선순위: 1. 사용자 직접 설정 2. 사이트별 자동 배속
 async function loadUserPreferences(tabId) {
-    try {
-        const result = await chrome.storage.local.get([`tab_${tabId}_speed`]);
-        const preferences = result[`tab_${tabId}_speed`];
-
-        if (preferences && preferences.speed) {
-            updateSpeedDisplays(preferences.speed);
-            await setTabSpeed(tabId, preferences.speed);
-        }
-    } catch (error) {
-        console.error('Error loading preferences:', error);
-    }
+    // 팝업을 열 때는 현재 비디오의 실제 속도를 가져와서 표시
+    // setTabSpeed를 호출하지 않아서 사이트별 자동 설정을 덮어쓰지 않음
 }
 
 // setSpeed 함수 업데이트

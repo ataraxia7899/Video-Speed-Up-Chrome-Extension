@@ -56,7 +56,7 @@
 			errorThreshold: 5000,
 			maxErrorsInThreshold: 3,
 		},
-		// 상수 정의
+		// 상수 정의 (utils.js의 VSC_CONSTANTS와 동기화 필요)
 		CONSTANTS: {
 			CACHE_TTL: 5000,
 			MAX_RETRIES: 3,
@@ -303,7 +303,14 @@
 		try {
 			await chrome.scripting.executeScript({
 				target: { tabId },
-				files: ['content.js'],
+				files: [
+					'utils.js',
+					'content/content-main.js',
+					'content/content-observer.js',
+					'content/content-youtube.js',
+					'content/content-popup.js',
+					'content/content-init.js'
+				],
 			});
 			state.isInjected = true;
 			log('Content Script 주입 성공', tabId);
@@ -532,7 +539,14 @@
 						try {
 							await chrome.scripting.executeScript({
 								target: { tabId },
-								files: ['content.js'],
+								files: [
+									'utils.js',
+									'content/content-main.js',
+									'content/content-observer.js',
+									'content/content-youtube.js',
+									'content/content-popup.js',
+									'content/content-init.js'
+								],
 							});
 							await applyTabSpeed(tabId);
 							return { success: true };
@@ -778,19 +792,4 @@
 			}
 		}
 	}
-
-// 단축키 명령 리스너
-chrome.commands.onCommand.addListener((command) => {
-	console.log('[Background] Command received:', command);
-	if (command === 'toggle-speed-input') {
-		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-			console.log('[Background] Active tab:', tabs[0]?.id, tabs[0]?.url);
-			if (tabs[0]?.id) {
-				chrome.tabs.sendMessage(tabs[0].id, { action: 'toggleSpeedPopup' })
-					.then(() => console.log('[Background] Message sent successfully'))
-					.catch(err => console.log('[Background] Message failed:', err));
-			}
-		});
-	}
-});
 })();
