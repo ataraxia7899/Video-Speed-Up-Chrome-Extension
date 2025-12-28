@@ -5,11 +5,11 @@
 
 # 🎥 Video Speed Controller
 
-[![크롬 웹스토어](https://img.shields.io/badge/Chrome-Web%20Store-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/begolcfbgiopgodhfijbppokmnddchei)
-[![사용자](https://img.shields.io/chrome-web-store/users/begolcfbgiopgodhfijbppokmnddchei)](https://chromewebstore.google.com/detail/begolcfbgiopgodhfijbppokmnddchei)
-[![버전](https://img.shields.io/badge/Version-1.1.0-blue)](https://github.com/ataraxia7899/Video-Speed-Up-Chrome-Extension)
-[![라이선스](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![언어](https://img.shields.io/badge/Language-JavaScript-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/ko/docs/Web/JavaScript)
+[![Chrome 웹 스토어](https://img.shields.io/badge/Chrome-웹_스토어-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/begolcfbgiopgodhfijbppokmnddchei)
+[![사용자 수](https://img.shields.io/chrome-web-store/users/begolcfbgiopgodhfijbppokmnddchei?label=사용자%20수&color=blue)](https://chromewebstore.google.com/detail/begolcfbgiopgodhfijbppokmnddchei)
+[![버전](https://img.shields.io/badge/버전-1.1.0-blue)](https://github.com/ataraxia7899/Video-Speed-Up-Chrome-Extension)
+[![라이선스](https://img.shields.io/badge/라이선스-MIT-green)](LICENSE)
+[![언어](https://img.shields.io/badge/언어-JavaScript-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/ko/docs/Web/JavaScript)
 
 **브라우저에서 비디오 재생 속도를 쉽게 제어할 수 있는 Chrome/Edge 확장 프로그램입니다.**
 
