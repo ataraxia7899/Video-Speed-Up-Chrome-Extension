@@ -3,7 +3,7 @@
 ### 🌐 README Language : [English](README.md) | [한국어](README.ko.md)
 <br>
 
-# Video Speed Controller 🎥
+# 🎥 Video Speed Controller
 
 [![크롬 웹스토어](https://img.shields.io/badge/Chrome-Web%20Store-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/begolcfbgiopgodhfijbppokmnddchei)
 [![라이선스](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
