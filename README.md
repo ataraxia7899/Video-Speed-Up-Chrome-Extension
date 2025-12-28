@@ -3,7 +3,7 @@
 ### 🌐 README Language : [English](README.md) | [한국어](README.ko.md)
 <br>
 
-# Video Speed Controller 🎥
+# 🎥 Video Speed Controller
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/begolcfbgiopgodhfijbppokmnddchei)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -144,3 +144,4 @@ MIT License
 ### 🔧 Troubleshooting
 
 If you encounter any issues, please create a new issue in the [Issues](https://github.com/ataraxia7899/Video-Speed-Up-Chrome-Extension/issues) tab.
+
