@@ -6,6 +6,7 @@
 # 🎥 Video Speed Controller
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-4285F4?logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/begolcfbgiopgodhfijbppokmnddchei)
+[![Version](https://img.shields.io/badge/Version-1.1.0-blue)](https://github.com/ataraxia7899/Video-Speed-Up-Chrome-Extension)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Language](https://img.shields.io/badge/Language-JavaScript-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 
@@ -144,4 +145,5 @@ MIT License
 ### 🔧 Troubleshooting
 
 If you encounter any issues, please create a new issue in the [Issues](https://github.com/ataraxia7899/Video-Speed-Up-Chrome-Extension/issues) tab.
+
 
