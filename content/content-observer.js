@@ -65,6 +65,9 @@
 			let isRestoringSpeed = false;
 			const handleRateChange = () => {
 				if (isRestoringSpeed) return;
+				
+				// 사용자가 확장프로그램을 통해 직접 배속을 설정하지 않은 경우 사이트 배속 허용
+				if (!state.manualOverride && !state.autoSpeedApplied) return;
 
 				const targetSpeed = state.pendingSpeedUpdate ?? state.currentSpeed;
 				if (Math.abs(video.playbackRate - targetSpeed) > 0.01) {
