@@ -55,6 +55,9 @@
 
 			// 현재 속도 적용 함수
 			const applyCurrentSpeed = () => {
+				// 1배속이면 사이트 배속 허용
+				if (state.currentSpeed === 1.0 && state.pendingSpeedUpdate === null) return;
+
 				const targetSpeed = state.pendingSpeedUpdate ?? state.currentSpeed;
 				if (Math.abs(video.playbackRate - targetSpeed) > 0.01) {
 					video.playbackRate = targetSpeed;
@@ -66,8 +69,8 @@
 			const handleRateChange = () => {
 				if (isRestoringSpeed) return;
 				
-				// 사용자가 확장프로그램을 통해 직접 배속을 설정하지 않은 경우 사이트 배속 허용
-				if (!state.manualOverride && !state.autoSpeedApplied) return;
+				// 1배속이면 사이트 배속 허용
+				if (state.currentSpeed === 1.0 && state.pendingSpeedUpdate === null) return;
 
 				const targetSpeed = state.pendingSpeedUpdate ?? state.currentSpeed;
 				if (Math.abs(video.playbackRate - targetSpeed) > 0.01) {
