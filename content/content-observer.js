@@ -55,6 +55,8 @@
 
 			// 현재 속도 적용 함수
 			const applyCurrentSpeed = () => {
+				// 사용자가 배속을 설정하지 않았고 자동 설정도 없으면 사이트 배속 허용
+				if (!state.manualOverride && !state.autoSpeedApplied) return;
 				// 1배속이면 사이트 배속 허용
 				if (state.currentSpeed === 1.0 && state.pendingSpeedUpdate === null) return;
 
@@ -69,6 +71,8 @@
 			const handleRateChange = () => {
 				if (isRestoringSpeed) return;
 				
+				// 사용자가 배속을 설정하지 않았고 자동 설정도 없으면 사이트 배속 허용
+				if (!state.manualOverride && !state.autoSpeedApplied) return;
 				// 1배속이면 사이트 배속 허용
 				if (state.currentSpeed === 1.0 && state.pendingSpeedUpdate === null) return;
 
