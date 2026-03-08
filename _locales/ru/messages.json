@@ -1,0 +1,136 @@
+{
+	"extName": {
+		"message": "Контроллер Скорости Видео",
+		"description": "Extension name"
+	},
+	"extDescription": {
+		"message": "Легко управляйте скоростью воспроизведения видео с помощью горячих клавиш и настроек для конкретных сайтов",
+		"description": "Extension description"
+	},
+	"currentSpeed": {
+		"message": "Текущая скорость:",
+		"description": "Current speed label"
+	},
+	"presetSpeed": {
+		"message": "Предустановленная скорость",
+		"description": "Preset speed section title"
+	},
+	"speedAdjust": {
+		"message": "Регулировка скорости",
+		"description": "Speed adjustment section title"
+	},
+	"siteSettings": {
+		"message": "Настройки сайтов",
+		"description": "Site settings section title"
+	},
+	"urlPatternPlaceholder": {
+		"message": "Шаблон URL (напр. .youtube.com)",
+		"description": "URL pattern input placeholder"
+	},
+	"urlPatternExample": {
+		"message": "Шаблон URL (напр. .youtube.com/* )",
+		"description": "URL pattern input example"
+	},
+	"speedPlaceholder": {
+		"message": "Скорость воспроизведения",
+		"description": "Speed input placeholder"
+	},
+	"addButton": {
+		"message": "Добавить",
+		"description": "Add button text"
+	},
+	"shortcutGuide": {
+		"message": "Горячие клавиши",
+		"description": "Shortcut guide section title"
+	},
+	"openSpeedPopup": {
+		"message": "Открыть панель скорости",
+		"description": "Speed popup shortcut description"
+	},
+	"apply": {
+		"message": "Применить",
+		"description": "Apply button text"
+	},
+	"delete": {
+		"message": "Удалить",
+		"description": "Delete button text"
+	},
+	"noSites": {
+		"message": "Нет сохраненных сайтов",
+		"description": "Empty site list message"
+	},
+	"speedInput": {
+		"message": "Ввод скорости",
+		"description": "Speed input label"
+	},
+	"invalidSpeed": {
+		"message": "Пожалуйста, введите корректную скорость (0.1 ~ 16).",
+		"description": "Invalid speed input message"
+	},
+	"urlRequired": {
+		"message": "Пожалуйста, введите шаблон URL.",
+		"description": "URL pattern required message"
+	},
+	"inputSpeedAriaLabel": {
+		"message": "Ввод скорости воспроизведения",
+		"description": "Playback speed input accessibility label"
+	},
+	"toggleSiteSpeed": {
+		"message": "Переключить настройку скорости для сайта",
+		"description": "Site setting toggle button accessibility label"
+	},
+	"deleteSite": {
+		"message": "Удалить настройку сайта",
+		"description": "Delete site setting button accessibility label"
+	},
+	"addSiteSpeed": {
+		"message": "Добавить настройку скорости для сайта",
+		"description": "Add site-specific speed setting button accessibility label"
+	},
+	"speedRangeInfo": {
+		"message": "Поддерживает скорость от 0.1x до 16x",
+		"description": "Speed input range information"
+	},
+	"shortcutSettingsNote": {
+		"message": "Горячие клавиши можно изменить в Настройки Chrome > Расширения > Быстрые клавиши",
+		"description": "Shortcut settings guidance note"
+	},
+	"speedSettingTitle": {
+		"message": "Настройка Скорости",
+		"description": "Content script popup title"
+	},
+	"shortcutApply": {
+		"message": "Применить",
+		"description": "Apply action in shortcut info"
+	},
+	"shortcutCancel": {
+		"message": "Отмена",
+		"description": "Cancel action in shortcut info"
+	},
+	"toggleDarkMode": {
+		"message": "Переключить темную тему",
+		"description": "Dark mode toggle button accessibility label"
+	},
+	"decreaseSpeed": {
+		"message": "Уменьшить скорость на $AMOUNT$",
+		"description": "Decrease speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
+	},
+	"increaseSpeed": {
+		"message": "Увеличить скорость на $AMOUNT$",
+		"description": "Increase speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
+	},
+	"shortcutInfoLink": {
+		"message": "Настроить",
+		"description": "Shortcut customize link string"
+	}
+}

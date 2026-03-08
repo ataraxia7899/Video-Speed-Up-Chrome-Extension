@@ -1,0 +1,136 @@
+{
+	"extName": {
+		"message": "Controlador de Velocidad de Video",
+		"description": "Extension name"
+	},
+	"extDescription": {
+		"message": "Controla fácilmente la velocidad de reproducción de video con atajos y configuraciones específicas por sitio",
+		"description": "Extension description"
+	},
+	"currentSpeed": {
+		"message": "Velocidad actual:",
+		"description": "Current speed label"
+	},
+	"presetSpeed": {
+		"message": "Velocidad preestablecida",
+		"description": "Preset speed section title"
+	},
+	"speedAdjust": {
+		"message": "Ajuste de velocidad",
+		"description": "Speed adjustment section title"
+	},
+	"siteSettings": {
+		"message": "Configuraciones por sitio",
+		"description": "Site settings section title"
+	},
+	"urlPatternPlaceholder": {
+		"message": "Patrón de URL (ej. .youtube.com)",
+		"description": "URL pattern input placeholder"
+	},
+	"urlPatternExample": {
+		"message": "Patrón de URL (ej. .youtube.com/* )",
+		"description": "URL pattern input example"
+	},
+	"speedPlaceholder": {
+		"message": "Velocidad de reproducción",
+		"description": "Speed input placeholder"
+	},
+	"addButton": {
+		"message": "Añadir",
+		"description": "Add button text"
+	},
+	"shortcutGuide": {
+		"message": "Guía de atajos",
+		"description": "Shortcut guide section title"
+	},
+	"openSpeedPopup": {
+		"message": "Abrir popup de control de velocidad",
+		"description": "Speed popup shortcut description"
+	},
+	"apply": {
+		"message": "Aplicar",
+		"description": "Apply button text"
+	},
+	"delete": {
+		"message": "Eliminar",
+		"description": "Delete button text"
+	},
+	"noSites": {
+		"message": "No hay sitios guardados",
+		"description": "Empty site list message"
+	},
+	"speedInput": {
+		"message": "Introducir velocidad",
+		"description": "Speed input label"
+	},
+	"invalidSpeed": {
+		"message": "Por favor, introduzca una velocidad válida (0.1 ~ 16).",
+		"description": "Invalid speed input message"
+	},
+	"urlRequired": {
+		"message": "Por favor, introduzca un patrón de URL.",
+		"description": "URL pattern required message"
+	},
+	"inputSpeedAriaLabel": {
+		"message": "Introducir velocidad de reproducción",
+		"description": "Playback speed input accessibility label"
+	},
+	"toggleSiteSpeed": {
+		"message": "Alternar configuración de velocidad específica del sitio",
+		"description": "Site setting toggle button accessibility label"
+	},
+	"deleteSite": {
+		"message": "Eliminar configuración del sitio",
+		"description": "Delete site setting button accessibility label"
+	},
+	"addSiteSpeed": {
+		"message": "Añadir configuración de velocidad específica del sitio",
+		"description": "Add site-specific speed setting button accessibility label"
+	},
+	"speedRangeInfo": {
+		"message": "Soporta velocidades desde 0.1x hasta 16x",
+		"description": "Speed input range information"
+	},
+	"shortcutSettingsNote": {
+		"message": "Los atajos se pueden cambiar en Configuración de Chrome > Extensiones > Atajos de teclado",
+		"description": "Shortcut settings guidance note"
+	},
+	"speedSettingTitle": {
+		"message": "Configuración de velocidad de reproducción",
+		"description": "Content script popup title"
+	},
+	"shortcutApply": {
+		"message": "Aplicar",
+		"description": "Apply action in shortcut info"
+	},
+	"shortcutCancel": {
+		"message": "Cancelar",
+		"description": "Cancel action in shortcut info"
+	},
+	"toggleDarkMode": {
+		"message": "Alternar modo oscuro",
+		"description": "Dark mode toggle button accessibility label"
+	},
+	"decreaseSpeed": {
+		"message": "Disminuir velocidad en $AMOUNT$",
+		"description": "Decrease speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
+	},
+	"increaseSpeed": {
+		"message": "Aumentar velocidad en $AMOUNT$",
+		"description": "Increase speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
+	},
+	"shortcutInfoLink": {
+		"message": "Personalizar",
+		"description": "Shortcut customize link string"
+	}
+}

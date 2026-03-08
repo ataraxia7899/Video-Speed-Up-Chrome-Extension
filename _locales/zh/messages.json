@@ -1,0 +1,136 @@
+{
+	"extName": {
+		"message": "视频速度控制器",
+		"description": "Extension name"
+	},
+	"extDescription": {
+		"message": "通过快捷键和特定网站设置轻松控制视频播放速度",
+		"description": "Extension description"
+	},
+	"currentSpeed": {
+		"message": "当前速度：",
+		"description": "Current speed label"
+	},
+	"presetSpeed": {
+		"message": "预设速度",
+		"description": "Preset speed section title"
+	},
+	"speedAdjust": {
+		"message": "速度调节",
+		"description": "Speed adjustment section title"
+	},
+	"siteSettings": {
+		"message": "特定网站设置",
+		"description": "Site settings section title"
+	},
+	"urlPatternPlaceholder": {
+		"message": "URL模式（例：.youtube.com）",
+		"description": "URL pattern input placeholder"
+	},
+	"urlPatternExample": {
+		"message": "URL模式（例：.youtube.com/* ）",
+		"description": "URL pattern input example"
+	},
+	"speedPlaceholder": {
+		"message": "播放速度",
+		"description": "Speed input placeholder"
+	},
+	"addButton": {
+		"message": "添加",
+		"description": "Add button text"
+	},
+	"shortcutGuide": {
+		"message": "快捷键指南",
+		"description": "Shortcut guide section title"
+	},
+	"openSpeedPopup": {
+		"message": "打开速度控制面板",
+		"description": "Speed popup shortcut description"
+	},
+	"apply": {
+		"message": "应用",
+		"description": "Apply button text"
+	},
+	"delete": {
+		"message": "删除",
+		"description": "Delete button text"
+	},
+	"noSites": {
+		"message": "没有保存的网站",
+		"description": "Empty site list message"
+	},
+	"speedInput": {
+		"message": "输入速度",
+		"description": "Speed input label"
+	},
+	"invalidSpeed": {
+		"message": "请输入有效的速度（0.1 ~ 16）。",
+		"description": "Invalid speed input message"
+	},
+	"urlRequired": {
+		"message": "请输入URL模式。",
+		"description": "URL pattern required message"
+	},
+	"inputSpeedAriaLabel": {
+		"message": "输入播放速度",
+		"description": "Playback speed input accessibility label"
+	},
+	"toggleSiteSpeed": {
+		"message": "切换特定网站速度设置",
+		"description": "Site setting toggle button accessibility label"
+	},
+	"deleteSite": {
+		"message": "删除网站设置",
+		"description": "Delete site setting button accessibility label"
+	},
+	"addSiteSpeed": {
+		"message": "添加特定网站速度设置",
+		"description": "Add site-specific speed setting button accessibility label"
+	},
+	"speedRangeInfo": {
+		"message": "支持0.1x到16x的播放速度",
+		"description": "Speed input range information"
+	},
+	"shortcutSettingsNote": {
+		"message": "可以在Chrome设置 > 扩展程序 > 键盘快捷键 中更改快捷键",
+		"description": "Shortcut settings guidance note"
+	},
+	"speedSettingTitle": {
+		"message": "播放速度设置",
+		"description": "Content script popup title"
+	},
+	"shortcutApply": {
+		"message": "应用",
+		"description": "Apply action in shortcut info"
+	},
+	"shortcutCancel": {
+		"message": "取消",
+		"description": "Cancel action in shortcut info"
+	},
+	"toggleDarkMode": {
+		"message": "切换深色模式",
+		"description": "Dark mode toggle button accessibility label"
+	},
+	"decreaseSpeed": {
+		"message": "速度降低 $AMOUNT$",
+		"description": "Decrease speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
+	},
+	"increaseSpeed": {
+		"message": "速度增加 $AMOUNT$",
+		"description": "Increase speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
+	},
+	"shortcutInfoLink": {
+		"message": "自定义",
+		"description": "Shortcut customize link string"
+	}
+}

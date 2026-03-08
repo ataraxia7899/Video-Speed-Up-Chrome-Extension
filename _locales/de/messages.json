@@ -1,0 +1,136 @@
+{
+	"extName": {
+		"message": "Video-Geschwindigkeitsregler",
+		"description": "Extension name"
+	},
+	"extDescription": {
+		"message": "Steuern Sie die Videowiedergabegeschwindigkeit einfach mit Tastenkombinationen und site-spezifischen Einstellungen",
+		"description": "Extension description"
+	},
+	"currentSpeed": {
+		"message": "Aktuelle Geschwindigkeit:",
+		"description": "Current speed label"
+	},
+	"presetSpeed": {
+		"message": "Voreingestellte Geschwindigkeit",
+		"description": "Preset speed section title"
+	},
+	"speedAdjust": {
+		"message": "Geschwindigkeitsanpassung",
+		"description": "Speed adjustment section title"
+	},
+	"siteSettings": {
+		"message": "Site-spezifische Einstellungen",
+		"description": "Site settings section title"
+	},
+	"urlPatternPlaceholder": {
+		"message": "URL-Muster (z.B. .youtube.com)",
+		"description": "URL pattern input placeholder"
+	},
+	"urlPatternExample": {
+		"message": "URL-Muster (z.B. .youtube.com/* )",
+		"description": "URL pattern input example"
+	},
+	"speedPlaceholder": {
+		"message": "Wiedergabegeschwindigkeit",
+		"description": "Speed input placeholder"
+	},
+	"addButton": {
+		"message": "Hinzufügen",
+		"description": "Add button text"
+	},
+	"shortcutGuide": {
+		"message": "Tastenkombinationsanleitung",
+		"description": "Shortcut guide section title"
+	},
+	"openSpeedPopup": {
+		"message": "Geschwindigkeits-Popup öffnen",
+		"description": "Speed popup shortcut description"
+	},
+	"apply": {
+		"message": "Anwenden",
+		"description": "Apply button text"
+	},
+	"delete": {
+		"message": "Löschen",
+		"description": "Delete button text"
+	},
+	"noSites": {
+		"message": "Keine gespeicherten Websites",
+		"description": "Empty site list message"
+	},
+	"speedInput": {
+		"message": "Geschwindigkeit eingeben",
+		"description": "Speed input label"
+	},
+	"invalidSpeed": {
+		"message": "Bitte geben Sie eine gültige Geschwindigkeit ein (0.1 ~ 16).",
+		"description": "Invalid speed input message"
+	},
+	"urlRequired": {
+		"message": "Bitte geben Sie ein URL-Muster ein.",
+		"description": "URL pattern required message"
+	},
+	"inputSpeedAriaLabel": {
+		"message": "Wiedergabegeschwindigkeit eingeben",
+		"description": "Playback speed input accessibility label"
+	},
+	"toggleSiteSpeed": {
+		"message": "Site-spezifische Geschwindigkeitseinstellung umschalten",
+		"description": "Site setting toggle button accessibility label"
+	},
+	"deleteSite": {
+		"message": "Site-Einstellung löschen",
+		"description": "Delete site setting button accessibility label"
+	},
+	"addSiteSpeed": {
+		"message": "Site-spezifische Geschwindigkeitseinstellung hinzufügen",
+		"description": "Add site-specific speed setting button accessibility label"
+	},
+	"speedRangeInfo": {
+		"message": "Unterstützt Geschwindigkeiten von 0.1x bis 16x",
+		"description": "Speed input range information"
+	},
+	"shortcutSettingsNote": {
+		"message": "Tastenkombinationen können in den Chrome-Einstellungen > Erweiterungen > Tastenkombinationen geändert werden",
+		"description": "Shortcut settings guidance note"
+	},
+	"speedSettingTitle": {
+		"message": "Wiedergabegeschwindigkeitseinstellung",
+		"description": "Content script popup title"
+	},
+	"shortcutApply": {
+		"message": "Anwenden",
+		"description": "Apply action in shortcut info"
+	},
+	"shortcutCancel": {
+		"message": "Abbrechen",
+		"description": "Cancel action in shortcut info"
+	},
+	"toggleDarkMode": {
+		"message": "Dunkelmodus umschalten",
+		"description": "Dark mode toggle button accessibility label"
+	},
+	"decreaseSpeed": {
+		"message": "Geschwindigkeit um $AMOUNT$ verringern",
+		"description": "Decrease speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
+	},
+	"increaseSpeed": {
+		"message": "Geschwindigkeit um $AMOUNT$ erhöhen",
+		"description": "Increase speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
+	},
+	"shortcutInfoLink": {
+		"message": "Anpassen",
+		"description": "Shortcut customize link string"
+	}
+}

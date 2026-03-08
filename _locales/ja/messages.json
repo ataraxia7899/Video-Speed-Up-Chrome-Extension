@@ -1,0 +1,136 @@
+{
+	"extName": {
+		"message": "ビデオスピードコントローラー",
+		"description": "Extension name"
+	},
+	"extDescription": {
+		"message": "ショートカットとサイト固有の設定で動画の再生速度を簡単に制御します",
+		"description": "Extension description"
+	},
+	"currentSpeed": {
+		"message": "現在の速度:",
+		"description": "Current speed label"
+	},
+	"presetSpeed": {
+		"message": "プリセット速度",
+		"description": "Preset speed section title"
+	},
+	"speedAdjust": {
+		"message": "速度調整",
+		"description": "Speed adjustment section title"
+	},
+	"siteSettings": {
+		"message": "サイト固有の設定",
+		"description": "Site settings section title"
+	},
+	"urlPatternPlaceholder": {
+		"message": "URLパターン（例：.youtube.com）",
+		"description": "URL pattern input placeholder"
+	},
+	"urlPatternExample": {
+		"message": "URLパターン（例：.youtube.com/* ）",
+		"description": "URL pattern input example"
+	},
+	"speedPlaceholder": {
+		"message": "再生速度",
+		"description": "Speed input placeholder"
+	},
+	"addButton": {
+		"message": "追加",
+		"description": "Add button text"
+	},
+	"shortcutGuide": {
+		"message": "ショートカットガイド",
+		"description": "Shortcut guide section title"
+	},
+	"openSpeedPopup": {
+		"message": "速度制御ポップアップを開く",
+		"description": "Speed popup shortcut description"
+	},
+	"apply": {
+		"message": "適用",
+		"description": "Apply button text"
+	},
+	"delete": {
+		"message": "削除",
+		"description": "Delete button text"
+	},
+	"noSites": {
+		"message": "保存されたサイトはありません",
+		"description": "Empty site list message"
+	},
+	"speedInput": {
+		"message": "速度入力",
+		"description": "Speed input label"
+	},
+	"invalidSpeed": {
+		"message": "有効な速度を入力してください（0.1〜16）。",
+		"description": "Invalid speed input message"
+	},
+	"urlRequired": {
+		"message": "URLパターンを入力してください。",
+		"description": "URL pattern required message"
+	},
+	"inputSpeedAriaLabel": {
+		"message": "再生速度を入力",
+		"description": "Playback speed input accessibility label"
+	},
+	"toggleSiteSpeed": {
+		"message": "サイト固有の速度設定を切り替える",
+		"description": "Site setting toggle button accessibility label"
+	},
+	"deleteSite": {
+		"message": "サイト設定を削除",
+		"description": "Delete site setting button accessibility label"
+	},
+	"addSiteSpeed": {
+		"message": "サイト固有の速度設定を追加",
+		"description": "Add site-specific speed setting button accessibility label"
+	},
+	"speedRangeInfo": {
+		"message": "0.1倍から16倍までの速度をサポート",
+		"description": "Speed input range information"
+	},
+	"shortcutSettingsNote": {
+		"message": "ショートカットはChromeの設定＞拡張機能＞キーボードショートカットで変更できます",
+		"description": "Shortcut settings guidance note"
+	},
+	"speedSettingTitle": {
+		"message": "再生速度設定",
+		"description": "Content script popup title"
+	},
+	"shortcutApply": {
+		"message": "適用",
+		"description": "Apply action in shortcut info"
+	},
+	"shortcutCancel": {
+		"message": "キャンセル",
+		"description": "Cancel action in shortcut info"
+	},
+	"toggleDarkMode": {
+		"message": "ダークモードの切り替え",
+		"description": "Dark mode toggle button accessibility label"
+	},
+	"decreaseSpeed": {
+		"message": "速度を $AMOUNT$ 下げる",
+		"description": "Decrease speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
+	},
+	"increaseSpeed": {
+		"message": "速度を $AMOUNT$ 上げる",
+		"description": "Increase speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
+	},
+	"shortcutInfoLink": {
+		"message": "カスタマイズ",
+		"description": "Shortcut customize link string"
+	}
+}

@@ -1,0 +1,136 @@
+{
+	"extName": {
+		"message": "Video Speed Controller",
+		"description": "Extension name"
+	},
+	"extDescription": {
+		"message": "शॉर्टकट और साइट-विशिष्ट सेटिंग्स के साथ आसानी से वीडियो प्लेबैक गति को नियंत्रित करें",
+		"description": "Extension description"
+	},
+	"currentSpeed": {
+		"message": "वर्तमान गति:",
+		"description": "Current speed label"
+	},
+	"presetSpeed": {
+		"message": "प्रीसेट गति",
+		"description": "Preset speed section title"
+	},
+	"speedAdjust": {
+		"message": "गति समायोजन",
+		"description": "Speed adjustment section title"
+	},
+	"siteSettings": {
+		"message": "साइट-विशिष्ट सेटिंग्स",
+		"description": "Site settings section title"
+	},
+	"urlPatternPlaceholder": {
+		"message": "URL पैटर्न (उदा. .youtube.com)",
+		"description": "URL pattern input placeholder"
+	},
+	"urlPatternExample": {
+		"message": "URL पैटर्न (उदा. .youtube.com/* )",
+		"description": "URL pattern input example"
+	},
+	"speedPlaceholder": {
+		"message": "प्लेबैक गति",
+		"description": "Speed input placeholder"
+	},
+	"addButton": {
+		"message": "जोड़ें",
+		"description": "Add button text"
+	},
+	"shortcutGuide": {
+		"message": "शॉर्टकट गाइड",
+		"description": "Shortcut guide section title"
+	},
+	"openSpeedPopup": {
+		"message": "स्पीड कंट्रोल पॉपअप खोलें",
+		"description": "Speed popup shortcut description"
+	},
+	"apply": {
+		"message": "लागू करें",
+		"description": "Apply button text"
+	},
+	"delete": {
+		"message": "हटाएं",
+		"description": "Delete button text"
+	},
+	"noSites": {
+		"message": "कोई सहेजी गई साइट नहीं",
+		"description": "Empty site list message"
+	},
+	"speedInput": {
+		"message": "गति दर्ज करें",
+		"description": "Speed input label"
+	},
+	"invalidSpeed": {
+		"message": "कृपया एक वैध गति दर्ज करें (0.1 ~ 16)।",
+		"description": "Invalid speed input message"
+	},
+	"urlRequired": {
+		"message": "कृपया एक URL पैटर्न दर्ज करें।",
+		"description": "URL pattern required message"
+	},
+	"inputSpeedAriaLabel": {
+		"message": "प्लेबैक गति दर्ज करें",
+		"description": "Playback speed input accessibility label"
+	},
+	"toggleSiteSpeed": {
+		"message": "साइट-विशिष्ट गति सेटिंग टॉगल करें",
+		"description": "Site setting toggle button accessibility label"
+	},
+	"deleteSite": {
+		"message": "साइट सेटिंग हटाएं",
+		"description": "Delete site setting button accessibility label"
+	},
+	"addSiteSpeed": {
+		"message": "साइट-विशिष्ट गति सेटिंग जोड़ें",
+		"description": "Add site-specific speed setting button accessibility label"
+	},
+	"speedRangeInfo": {
+		"message": "0.1x से 16x तक की गति का समर्थन करता है",
+		"description": "Speed input range information"
+	},
+	"shortcutSettingsNote": {
+		"message": "शॉर्टकट Chrome सेटिंग्स > एक्सटेंशन > कीबोर्ड शॉर्टकट में बदले जा सकते हैं",
+		"description": "Shortcut settings guidance note"
+	},
+	"speedSettingTitle": {
+		"message": "प्लेबैक गति सेटिंग",
+		"description": "Content script popup title"
+	},
+	"shortcutApply": {
+		"message": "लागू करें",
+		"description": "Apply action in shortcut info"
+	},
+	"shortcutCancel": {
+		"message": "रद्द करें",
+		"description": "Cancel action in shortcut info"
+	},
+	"toggleDarkMode": {
+		"message": "डार्क मोड टॉगल करें",
+		"description": "Dark mode toggle button accessibility label"
+	},
+	"decreaseSpeed": {
+		"message": "गति $AMOUNT$ कम करें",
+		"description": "Decrease speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
+	},
+	"increaseSpeed": {
+		"message": "गति $AMOUNT$ बढ़ाएं",
+		"description": "Increase speed button accessibility label",
+		"placeholders": {
+			"amount": {
+				"content": "$1"
+			}
+		}
+	},
+	"shortcutInfoLink": {
+		"message": "अनुकूलित करें",
+		"description": "Shortcut customize link string"
+	}
+}
