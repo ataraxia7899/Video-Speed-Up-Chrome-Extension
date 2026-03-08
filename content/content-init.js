@@ -35,22 +35,22 @@
 				}
 
 				// 관찰자 설정
-				if (typeof observeVideoElements === 'function') {
-					observeVideoElements();
+				if (typeof VSC.observeVideoElements === 'function') {
+					VSC.observeVideoElements();
 				}
-				if (typeof observeUrlChanges === 'function') {
-					observeUrlChanges();
+				if (typeof VSC.observeUrlChanges === 'function') {
+					VSC.observeUrlChanges();
 				}
 
-				if (state.youtubeConfig.isYouTube && typeof initYouTubeShortsObserver === 'function') {
-					initYouTubeShortsObserver();
+				if (state.youtubeConfig.isYouTube && typeof VSC.initYouTubeShortsObserver === 'function') {
+					VSC.initYouTubeShortsObserver();
 				}
 
 				// 현재 비디오 요소들 초기화
 				const videos = document.getElementsByTagName('video');
 				for (const video of videos) {
-					if (typeof initializeVideo === 'function') {
-						await initializeVideo(video);
+					if (typeof VSC.initializeVideo === 'function') {
+						await VSC.initializeVideo(video);
 					}
 				}
 
@@ -66,13 +66,16 @@
 	// 주기적 상태 검사
 	const checkInterval = typeof VSC_CONSTANTS !== 'undefined' ? VSC_CONSTANTS.STATUS_CHECK_INTERVAL : 5000;
 
-	setInterval(async () => {
+	const statusCheckIntervalId = setInterval(async () => {
 		if (VSC.reconnectionState.isReconnecting) return;
 
 		if (!state.contextValid) {
 			await VSC.attemptRecovery();
 		}
 	}, checkInterval);
+
+	// setInterval 정리 등록
+	state.cleanup.add(() => clearInterval(statusCheckIntervalId));
 
 	// 페이지 언로드 시 정리
 	window.addEventListener('beforeunload', () => {

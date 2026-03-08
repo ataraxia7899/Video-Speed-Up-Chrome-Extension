@@ -128,5 +128,9 @@
 				"content": "$1"
 			}
 		}
+	},
+	"shortcutInfoLink": {
+		"message": "사용자 지정",
+		"description": "바로가기 사용자 지정 링크 문자열"
 	}
 }

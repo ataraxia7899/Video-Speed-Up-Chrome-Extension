@@ -1,16 +1,6 @@
 // 기본 상태 관리
 let currentVideoSpeed = 1.0;
 
-// utils 객체 정의
-const utils = {
-	// 무작동 로그 함수
-	log: () => {}, // noop 함수로 대체
-	isValidSpeed(speed) {
-		const parsed = parseFloat(speed);
-		return !isNaN(parsed) && parsed >= 0.1 && parsed <= 16;
-	},
-};
-
 // 스토리지 캐시 시스템 - utils.js의 StorageCacheManager 사용
 const StorageManager = new StorageCacheManager();
 
@@ -145,7 +135,7 @@ async function getTabSpeed(tabId) {
 }
 
 async function setTabSpeed(tabId, speed) {
-    if (!utils.isValidSpeed(speed)) {
+    if (!isValidSpeed(speed)) {
         return false;
     }
 
@@ -188,7 +178,7 @@ async function loadUserPreferences(tabId) {
 
 // setSpeed 함수 업데이트
 async function setSpeed(speed) {
-    if (!utils.isValidSpeed(speed)) {
+    if (!isValidSpeed(speed)) {
         return;
     }
 
@@ -234,7 +224,6 @@ async function getCurrentSpeed() {
 
 async function initializeApp() {
 	try {
-		utils.log('Initializing app...');
 
         // 저장된 사용자 설정 로드
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -262,9 +251,8 @@ async function initializeApp() {
 
 		localizeHtmlPage();
 
-		utils.log('App initialized successfully');
 	} catch (error) {
-		utils.log('Initialization error:', error);
+		console.error('Initialization error:', error);
 	}
 }
 
@@ -319,7 +307,6 @@ function addAnimationEffects() {
 // 속도 입력 필드 초기화 - 성능 개선
 function initializeButtons() {
 	return new Promise((resolve) => {
-		utils.log('Initializing buttons');
 
 		// 프리셋 버튼 초기화
 		const speedButtons = document.querySelectorAll('.speed-btn');
@@ -351,15 +338,13 @@ function initializeButtons() {
 							break;
 					}
 
-					if (utils.isValidSpeed(newSpeed)) {
-						utils.log('Relative speed button clicked:', newSpeed);
+					if (isValidSpeed(newSpeed)) {
 						setSpeed(newSpeed);
 					}
 				} else {
 					// 일반 프리셋 버튼 처리
 					const speed = parseFloat(speedValue);
-					utils.log('Speed button clicked:', speed);
-					if (utils.isValidSpeed(speed)) {
+					if (isValidSpeed(speed)) {
 						setSpeed(speed);
 					}
 				}
@@ -375,7 +360,7 @@ function initializeButtons() {
 			speedInput.addEventListener('input', (e) => {
 				clearTimeout(inputTimeout);
 				const speed = parseFloat(e.target.value);
-				if (utils.isValidSpeed(speed)) {
+				if (isValidSpeed(speed)) {
 					inputTimeout = setTimeout(() => {
 						setSpeed(speed);
 					}, 300); // 300ms 디바운스
@@ -398,7 +383,7 @@ function initializeButtons() {
 			speedInput.addEventListener('blur', () => {
 				clearTimeout(inputTimeout);
 				const speed = parseFloat(speedInput.value);
-				if (utils.isValidSpeed(speed)) {
+				if (isValidSpeed(speed)) {
 					setSpeed(speed);
 				}
 			});
@@ -437,7 +422,7 @@ async function handleAddSite() {
         return;
     }
 
-    if (!utils.isValidSpeed(speed)) {
+    if (!isValidSpeed(speed)) {
         alert(chrome.i18n.getMessage('invalidSpeed'));
         return;
     }
@@ -575,10 +560,8 @@ async function saveShortcuts() {
 		await chrome.storage.sync.set({
 			speedPopupShortcut,
 		});
-
-		utils.log('Settings saved:', { speedPopupShortcut });
 	} catch (error) {
-		utils.log('Error saving settings:', error);
+		console.error('Error saving settings:', error);
 	}
 }
 
@@ -600,7 +583,7 @@ async function loadSavedSettings() {
 
         return settings;
     } catch (error) {
-        utils.log('Error loading settings:', error);
+        console.error('Error loading settings:', error);
         return null;
     }
 }
@@ -677,6 +660,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 앱 초기화 및 단축키 설정 로드
         await initializeApp();
         await initializeShortcuts();
+
+        // 버전 정보 동적 표시
+        const versionEl = document.getElementById('version-display');
+        if (versionEl) {
+            versionEl.textContent = `version: ${chrome.runtime.getManifest().version}`;
+        }
+
+        // 단축키 설정 링크 이벤트
+        const shortcutsLink = document.getElementById('shortcuts-link');
+        if (shortcutsLink) {
+            shortcutsLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+            });
+        }
 
         // 팝업 닫힐 때 정리
         window.addEventListener('unload', () => {

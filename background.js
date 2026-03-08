@@ -1,4 +1,14 @@
 (() => {
+	// 주입 대상 스크립트 파일 목록 (단일 소스)
+	const CONTENT_SCRIPT_FILES = [
+		'utils.js',
+		'content/content-main.js',
+		'content/content-observer.js',
+		'content/content-youtube.js',
+		'content/content-popup.js',
+		'content/content-init.js',
+	];
+
 	const BackgroundController = {
 		DEBUG: false,
 		injectionTracker: new Map(),
@@ -71,10 +81,10 @@
 			TTL: 5000,
 			pendingRequests: new Map(),
 		},
+		// 주입 상태 관리 (기존 외부 Map 통합)
+		injectionStates: new Map(), // tabId -> { isInjecting, isInjected }
+		portReconnectTimeouts: new Map(),
 	};
-
-	// 전역 상태 관리 객체에 추가
-	const injectionStates = new Map(); // tabId -> { isInjecting: boolean, isInjected: boolean }
 
 	// Injection Lock 관리 함수
 	async function acquireInjectionLock(tabId) {
@@ -189,13 +199,7 @@
 		},
 	};
 
-	function log(...args) {
-		if (BackgroundController.DEBUG) {
-			// console.log('[Background]', new Date().toISOString(), ...args);
-		}
-	}
-
-	// 오류 로깅 최적화
+	// 오류 로깅 (쓰로틀링 적용)
 	function throttledLog(type, message, error = null) {
 		if (!BackgroundController.debugMode && type === 'debug') {
 			return;
@@ -222,38 +226,6 @@
 
 		if (type === 'error') {
 			tracking.lastError = now;
-		}
-	}
-
-	// 탭 등록 및 추적 함수 추가
-	function registerTab(tabId) {
-		if (!BackgroundController.activeTabsRegistry.has(tabId)) {
-			BackgroundController.activeTabsRegistry.set(tabId, {
-				initialized: false,
-				recoveryAttempts: 0,
-				lastRecoveryTime: 0,
-			});
-		}
-	}
-
-	// 탭 상태 초기화 함수 개선
-	async function initializeTab(tabId) {
-		const tabInfo = BackgroundController.activeTabsRegistry.get(tabId);
-		if (!tabInfo) {
-			registerTab(tabId);
-		}
-
-		try {
-			await injectContentScript(tabId);
-			const valid = await verifyTabContext(tabId);
-			if (!valid) {
-				log('컨텍스트 무효화 감지, 자동 복구 시도', tabId);
-				await reinjectContentScript(tabId);
-			}
-			BackgroundController.activeTabsRegistry.get(tabId).initialized = true;
-		} catch (error) {
-			log(`Tab ${tabId} initialization failed:`, error);
-			throw error;
 		}
 	}
 
@@ -290,32 +262,23 @@
 
 	// 안전 주입 함수
 	async function safeInjectContentScript(tabId, url) {
-		const state = injectionStates.get(tabId) || {
+		const state = BackgroundController.injectionStates.get(tabId) || {
 			isInjecting: false,
 			isInjected: false,
 		};
 		if (state.isInjecting || state.isInjected) {
-			log('이미 주입 중이거나 완료됨', tabId);
 			return;
 		}
 		state.isInjecting = true;
-		injectionStates.set(tabId, state);
+		BackgroundController.injectionStates.set(tabId, state);
 		try {
 			await chrome.scripting.executeScript({
 				target: { tabId },
-				files: [
-					'utils.js',
-					'content/content-main.js',
-					'content/content-observer.js',
-					'content/content-youtube.js',
-					'content/content-popup.js',
-					'content/content-init.js'
-				],
+				files: CONTENT_SCRIPT_FILES,
 			});
 			state.isInjected = true;
-			log('Content Script 주입 성공', tabId);
 		} catch (error) {
-			// Chrome 웹 스토어 등 보호된 페이지에서는 에러 무시
+			// 보호된 페이지에서는 에러 무시
 			const ignoredPatterns = ['cannot be scripted', 'extensions gallery', 'chrome://'];
 			const isIgnored = ignoredPatterns.some(p => error.message?.toLowerCase().includes(p.toLowerCase()));
 			if (!isIgnored) {
@@ -323,7 +286,7 @@
 			}
 		} finally {
 			state.isInjecting = false;
-			injectionStates.set(tabId, state);
+			BackgroundController.injectionStates.set(tabId, state);
 		}
 	}
 
@@ -340,15 +303,13 @@
 		}
 	}
 
-	// 탭 컨텍스트 검증 함수 추가
-	async function verifyTabContext(tabId) {
+	// 탭 컨텍스트 검증 (통합 함수)
+	async function validateTab(tabId) {
 		try {
 			const response = await sendMessageWithRetry(tabId, { action: 'ping' }, 0);
 			return response?.success === true;
-		} catch (e) {
-			// log('verifyTabContext: 컨텍스트 무효화 감지, 자동 복구 시도', tabId);
-			// await reinjectContentScript(tabId);
-			// return false;
+		} catch {
+			return false;
 		}
 	}
 
@@ -393,12 +354,13 @@
 		}
 	}
 
-	// YouTube URL 검사 함수 개선
+	// YouTube URL 검사 (RegExp 캐싱)
+	const _youtubeRegexCache = BackgroundController.youtubeConfig.URL_PATTERNS.map(
+		(pattern) => new RegExp(pattern.replace(/\*/g, '.*'))
+	);
+
 	function isYouTubeUrl(url) {
-		return BackgroundController.youtubeConfig.URL_PATTERNS.some((pattern) => {
-			const regex = new RegExp(pattern.replace(/\*/g, '.*'));
-			return regex.test(url);
-		});
+		return _youtubeRegexCache.some((regex) => regex.test(url));
 	}
 
 	// YouTube 네비게이션 핸들러 개선
@@ -414,7 +376,7 @@
 		}
 	}
 
-	// 탭 상태 초기화 함수 개선
+	// 탭 상태 초기화
 	function resetTabState(tabId) {
 		const pageState = BackgroundController.pageStates.get(tabId);
 		if (pageState?.recoveryTimeout) {
@@ -431,18 +393,17 @@
 		BackgroundController.navigationStates.delete(tabId);
 		BackgroundController.ports.delete(tabId);
 		BackgroundController.portStates.delete(tabId);
+		BackgroundController.injectionStates.delete(tabId);
 	}
 
-	// 포트 연결 관리 개선 - BackgroundController.ports 사용
-	const portReconnectTimeouts = new Map();
-
+	// 포트 연결 관리
 	chrome.runtime.onConnect.addListener((port) => {
 		if (port.name === 'videoSpeedController') {
 			const tabId = port.sender?.tab?.id;
 			if (tabId) {
-				if (portReconnectTimeouts.has(tabId)) {
-					clearTimeout(portReconnectTimeouts.get(tabId));
-					portReconnectTimeouts.delete(tabId);
+				if (BackgroundController.portReconnectTimeouts.has(tabId)) {
+					clearTimeout(BackgroundController.portReconnectTimeouts.get(tabId));
+					BackgroundController.portReconnectTimeouts.delete(tabId);
 				}
 
 				// BackgroundController.ports 사용
@@ -459,20 +420,20 @@
 
 					const timeout = setTimeout(() => {
 						tryReconnect(tabId);
-						portReconnectTimeouts.delete(tabId);
+						BackgroundController.portReconnectTimeouts.delete(tabId);
 					}, 1000);
 
-					portReconnectTimeouts.set(tabId, timeout);
+					BackgroundController.portReconnectTimeouts.set(tabId, timeout);
 				});
 			}
 		}
 	});
 
-	// 탭 정리 함수 개선
+	// 탭 정리 함수
 	function cleanupTab(tabId) {
-		if (portReconnectTimeouts.has(tabId)) {
-			clearTimeout(portReconnectTimeouts.get(tabId));
-			portReconnectTimeouts.delete(tabId);
+		if (BackgroundController.portReconnectTimeouts.has(tabId)) {
+			clearTimeout(BackgroundController.portReconnectTimeouts.get(tabId));
+			BackgroundController.portReconnectTimeouts.delete(tabId);
 		}
 
 		if (BackgroundController.ports.has(tabId)) {
@@ -491,18 +452,17 @@
 		StorageCache.clear(`tab_${tabId}_speed`);
 	}
 
-	// 탭 제거 핸들러 개선
+	// 탭 제거 핸들러
 	chrome.tabs.onRemoved.addListener((tabId) => {
-		injectionStates.delete(tabId);
+		BackgroundController.injectionStates.delete(tabId);
 		cleanupTab(tabId);
 	});
 
-	// 탭 업데이트 핸들러 개선
+	// 탭 업데이트 핸들러
 	chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 		if (changeInfo.status === 'complete') {
-			const valid = await verifyTabContext(tabId);
+			const valid = await validateTab(tabId);
 			if (!valid) {
-				// log('onUpdated: 컨텍스트 무효화 감지, 자동 복구 시도', tabId);
 				await reinjectContentScript(tabId);
 			}
 		}
@@ -519,8 +479,8 @@
 				cleanupTab(tabId);
 				await new Promise((resolve) => setTimeout(resolve, 500));
 				await safeInjectContentScript(tabId, url);
-			} catch (error) {
-				// throttledLog('error', 'Navigation handler error:', error);
+			} catch {
+				// 네비게이션 핸들러 오류 무시
 			}
 		};
 
@@ -539,14 +499,7 @@
 						try {
 							await chrome.scripting.executeScript({
 								target: { tabId },
-								files: [
-									'utils.js',
-									'content/content-main.js',
-									'content/content-observer.js',
-									'content/content-youtube.js',
-									'content/content-popup.js',
-									'content/content-init.js'
-								],
+								files: CONTENT_SCRIPT_FILES,
 							});
 							await applyTabSpeed(tabId);
 							return { success: true };
@@ -636,8 +589,8 @@
 					await injectContentScript(tab.id, tab.url);
 				}
 			}
-		} catch (error) {
-			// throttledLog('error', 'Error reinjecting content scripts:', error);
+		} catch {
+			// content script 재주입 오류 무시
 		}
 
 		// 캐시 초기화
@@ -669,7 +622,7 @@
 
 			const sendToggleMessage = async () => {
 				try {
-					const scriptInjected = await validateContentScript(tab.id);
+					const scriptInjected = await validateTab(tab.id);
 
 					if (!scriptInjected) {
 						await injectContentScript(tab.id, tab.url);
@@ -697,52 +650,8 @@
 		}
 	});
 
-	async function validateContentScript(tabId) {
-		try {
-			await chrome.tabs.sendMessage(tabId, { action: 'ping' });
-			return true;
-		} catch {
-			return false;
-		}
-	}
-
-	// Add context validation functions
-	async function validateExtensionContext(tabId) {
-		try {
-			const port = BackgroundController.ports.get(tabId);
-			if (!port) {
-				return false;
-			}
-
-			const response = await sendMessageWithTimeout(
-				tabId,
-				{ action: 'ping' },
-				BackgroundController.contextValidationConfig.CONNECTION_TIMEOUT
-			);
-
-			return response?.success === true;
-		} catch {
-			return false;
-		}
-	}
-
-	// Add timeout wrapper for messages
-	async function sendMessageWithTimeout(tabId, message, timeout) {
-		return Promise.race([
-			new Promise((resolve, reject) => {
-				chrome.tabs.sendMessage(tabId, message, (response) => {
-					if (chrome.runtime.lastError) {
-						reject(chrome.runtime.lastError);
-					} else {
-						resolve(response);
-					}
-				});
-			}),
-			new Promise((_, reject) =>
-				setTimeout(() => reject(new Error('Message timeout')), timeout)
-			),
-		]);
-	}
+	// validateContentScript 및 validateExtensionContext는 validateTab으로 통합됨
+	// sendMessageWithTimeout은 sendMessageWithRetry로 통합됨
 
 	// 탭별 배속 저장 함수 업데이트
 	async function saveTabSpeed(tabId, speed) {

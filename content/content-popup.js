@@ -248,7 +248,7 @@
 		}
 	}
 
-	// 전역 함수 등록
-	window.showSpeedInputPopup = showSpeedInputPopup;
-	window.createSpeedInputPopup = createSpeedInputPopup;
+	// 네임스페이스 캡슐화 함수 등록
+	VSC.showSpeedInputPopup = showSpeedInputPopup;
+	VSC.createSpeedInputPopup = createSpeedInputPopup;
 })();

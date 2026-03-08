@@ -7,8 +7,10 @@
 if (!window.__videoSpeedControllerLoaded) {
 	window.__videoSpeedControllerLoaded = true;
 
-	// 전역 상태 객체 (다른 모듈에서 접근 가능)
-	window.VSC = {
+	// 전역 상태 객체 (prototype 오염 방지)
+	window.VSC = window.VSC || Object.create(null);
+	
+	Object.assign(window.VSC, {
 		state: {
 			contextValid: false,
 			currentSpeed: 1.0,
@@ -352,7 +354,7 @@ if (!window.__videoSpeedControllerLoaded) {
 				});
 			}
 		},
-	};
+	});
 
 	// 메시지 핸들러
 	chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -375,8 +377,14 @@ if (!window.__videoSpeedControllerLoaded) {
 								throw new Error('Failed to recover context');
 							}
 						}
-						if (typeof showSpeedInputPopup === 'function') {
-							showSpeedInputPopup();
+						if (typeof VSC.showSpeedInputPopup === 'function') {
+							VSC.showSpeedInputPopup();
+						}
+						return { success: true };
+
+					case 'toggleSpeedInputPopup': // New case for keyboard shortcuts
+						if (typeof VSC.showSpeedInputPopup === 'function') {
+							VSC.showSpeedInputPopup();
 						}
 						return { success: true };
 
@@ -393,8 +401,8 @@ if (!window.__videoSpeedControllerLoaded) {
 						) {
 							VSC.state.manualOverride = true;
 							VSC.state.pendingSpeedUpdate = request.speed;
-							if (typeof applySpeedToAllVideos === 'function') {
-								const success = await applySpeedToAllVideos(request.speed);
+							if (typeof VSC.applySpeedToAllVideos === 'function') {
+								const success = await VSC.applySpeedToAllVideos(request.speed);
 								return { success, speed: request.speed };
 							}
 							return { success: false, error: 'Function not available' };

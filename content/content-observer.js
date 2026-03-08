@@ -221,10 +221,10 @@
 			let success = false;
 			
 			if (state.youtubeConfig.isYouTube) {
-				if (typeof handleYouTubeShortsVideo === 'function' && detectYouTubeShortsPage()) {
-					success = await handleYouTubeShortsVideo(speed);
-				} else if (typeof handleYouTubeVideo === 'function') {
-					success = await handleYouTubeVideo(speed);
+				if (typeof VSC.handleYouTubeShortsVideo === 'function' && VSC.detectYouTubeShortsPage()) {
+					success = await VSC.handleYouTubeShortsVideo(speed);
+				} else if (typeof VSC.handleYouTubeVideo === 'function') {
+					success = await VSC.handleYouTubeVideo(speed);
 				}
 			} else {
 				const applySpeed = () => {
@@ -319,7 +319,8 @@
 
 		// 주기적 URL 확인
 		if (state.youtubeConfig.isYouTube) {
-			setInterval(handleUrlChange, 1000);
+			const urlCheckIntervalId = setInterval(handleUrlChange, 1000);
+			state.cleanup.add(() => clearInterval(urlCheckIntervalId));
 		}
 
 		state.cleanup.add(() => {
@@ -329,13 +330,13 @@
 		});
 	}
 
-	// 전역 함수 등록
-	window.initializeVideo = initializeVideo;
-	window.observeVideoElements = observeVideoElements;
-	window.observeUrlChanges = observeUrlChanges;
-	window.applySpeedToAllVideos = applySpeedToAllVideos;
-	window.setVideoSpeed = setVideoSpeed;
-	window.detectYouTubeShortsPage = function() {
+	// 네임스페이스 캡슐화 함수 등록
+	VSC.initializeVideo = initializeVideo;
+	VSC.observeVideoElements = observeVideoElements;
+	VSC.observeUrlChanges = observeUrlChanges;
+	VSC.applySpeedToAllVideos = applySpeedToAllVideos;
+	VSC.setVideoSpeed = setVideoSpeed;
+	VSC.detectYouTubeShortsPage = function() {
 		return window.location.pathname.includes('/shorts/');
 	};
 })();

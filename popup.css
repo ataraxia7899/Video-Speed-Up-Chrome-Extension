@@ -234,17 +234,6 @@ h5::after {
 }
 
 .speed-input input:focus {
-	box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 2px rgba(99, 102, 241, 0.2);
-}
-
-/* Chrome, Safari, Edge에서 화살표 제거 */
-.speed-input input::-webkit-outer-spin-button,
-.speed-input input::-webkit-inner-spin-button {
-	-webkit-appearance: none;
-	margin: 0;
-}
-
-.speed-input input:focus {
 	outline: none;
 	border-color: var(--primary-color);
 	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
@@ -710,11 +699,7 @@ h5::after {
 	z-index: 1000;
 }
 
-/* 다크모드 스타일 */
-body.dark-mode {
-	background-color: #1a1d21;
-	color: #e4e6eb;
-}
+/* 다크모드 스타일 (body.dark-mode는 37행에서 정의됨) */
 
 .dark-mode .card {
 	background-color: #2c2f33;
@@ -767,24 +752,7 @@ body.dark-mode {
 	color: #72767d;
 }
 
-/* 다크모드 토글 버튼 스타일 */
-.dark-mode-toggle {
-	background: none;
-	border: none;
-	cursor: pointer;
-	padding: 8px;
-	border-radius: 50%;
-	transition: background-color 0.2s;
-	margin-left: 8px;
-}
-
-.dark-mode-toggle:hover {
-	background-color: rgba(255, 255, 255, 0.1);
-}
-
-.dark-mode .dark-mode-toggle:hover {
-	background-color: rgba(0, 0, 0, 0.2);
-}
+/* 다크모드 토글 버튼 (.dark-mode-toggle는 79행에서 정의됨) */
 
 /* 다크모드에서의 그라데이션 색상 조정 */
 .dark-mode .preset-section h5::after {
@@ -840,4 +808,26 @@ body.dark-mode {
 .dark-mode .speed-popup-input:focus {
 	border-color: #60a5fa;
 	box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+}
+
+.shortcut-link {
+	display: inline-block;
+	margin-top: 8px;
+	color: var(--primary-color);
+	text-decoration: none;
+	font-weight: 500;
+	transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.shortcut-link:hover {
+	color: var(--primary-hover);
+	text-decoration: underline;
+}
+
+.dark-mode .shortcut-link {
+	color: #5865f2;
+}
+
+.dark-mode .shortcut-link:hover {
+	color: #7289da;
 }

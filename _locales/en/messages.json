@@ -128,5 +128,9 @@
 				"content": "$1"
 			}
 		}
+	},
+	"shortcutInfoLink": {
+		"message": "Customize",
+		"description": "Shortcut customize link string"
 	}
 }

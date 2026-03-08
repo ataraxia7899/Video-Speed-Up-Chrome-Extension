@@ -26,7 +26,7 @@
 
 	// YouTube Shorts 비디오 처리
 	async function handleYouTubeShortsVideo(speed) {
-		if (!state.youtubeConfig.isYouTube || !detectYouTubeShortsPage()) {
+		if (!state.youtubeConfig.isYouTube || !VSC.detectYouTubeShortsPage()) {
 			return false;
 		}
 
@@ -102,7 +102,7 @@
 		if (!state.youtubeConfig.isYouTube) return false;
 
 		try {
-			if (detectYouTubeShortsPage()) {
+			if (VSC.detectYouTubeShortsPage()) {
 				return await handleYouTubeShortsSpecific(speed);
 			}
 
@@ -218,13 +218,13 @@
 		if (!state.youtubeConfig.isYouTube) return;
 
 		const handleShortsNavigation = async () => {
-			if (detectYouTubeShortsPage()) {
+			if (VSC.detectYouTubeShortsPage()) {
 				state.youtubeConfig.isShortsPage = true;
 				const videos = document.getElementsByTagName('video');
 				for (const video of videos) {
 					if (!state.initializedVideos.has(video)) {
-						if (typeof initializeVideo === 'function') {
-							await initializeVideo(video);
+						if (typeof VSC.initializeVideo === 'function') {
+							await VSC.initializeVideo(video);
 						}
 					}
 				}
@@ -236,37 +236,22 @@
 			}
 		};
 
-		if (state.youtubeConfig.shortsObserver) {
-			state.youtubeConfig.shortsObserver.disconnect();
-		}
-
-		state.youtubeConfig.shortsObserver = new MutationObserver(() => {
-			const currentVideoId = window.location.pathname.split('/shorts/')[1]?.split('?')[0];
-			if (currentVideoId !== state.youtubeConfig.lastShortsVideoId) {
-				state.youtubeConfig.lastShortsVideoId = currentVideoId;
-				handleShortsNavigation();
-			}
-		});
-
-		state.youtubeConfig.shortsObserver.observe(document.body, {
-			childList: true,
-			subtree: true,
-		});
+		// 비효율적인 MutationObserver 제거 및 SPA 네비게이션 이벤트 수신
+		window.addEventListener('yt-navigate-finish', handleShortsNavigation);
+		window.addEventListener('popstate', handleShortsNavigation); // 폴백
 
 		handleShortsNavigation();
 
 		state.cleanup.add(() => {
-			if (state.youtubeConfig.shortsObserver) {
-				state.youtubeConfig.shortsObserver.disconnect();
-				state.youtubeConfig.shortsObserver = null;
-			}
+			window.removeEventListener('yt-navigate-finish', handleShortsNavigation);
+			window.removeEventListener('popstate', handleShortsNavigation);
 		});
 	}
 
-	// 전역 함수 등록
-	window.handleYouTubeShortsVideo = handleYouTubeShortsVideo;
-	window.handleYouTubeVideo = handleYouTubeVideo;
-	window.handleYouTubeShortsSpecific = handleYouTubeShortsSpecific;
-	window.initYouTubeShortsObserver = initYouTubeShortsObserver;
-	window.isElementInViewport = isElementInViewport;
+	// 네임스페이스 캡슐화 함수 등록
+	VSC.handleYouTubeShortsVideo = handleYouTubeShortsVideo;
+	VSC.handleYouTubeVideo = handleYouTubeVideo;
+	VSC.handleYouTubeShortsSpecific = handleYouTubeShortsSpecific;
+	VSC.initYouTubeShortsObserver = initYouTubeShortsObserver;
+	VSC.isElementInViewport = isElementInViewport;
 })();
